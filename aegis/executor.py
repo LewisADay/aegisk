@@ -510,6 +510,26 @@ class SimExecutorJumpToCompletedJob(SimExecutor):
         self._update_internal_state()
 
 
+class SimExecutorJumpToCompletedJobProblemDependant(SimExecutorJumpToCompletedJob):
+    def __init__(
+        self,
+        n_workers: int = 2,
+        time_func: Optional[Callable] = None,
+        verbose=False,
+    ):
+        super().__init__(
+            n_workers=n_workers, time_func=time_func, verbose=verbose
+        )
+
+    def _add_running_time_to_job(self, job) -> dict:
+        if self._time_func is not None:
+            job["t"] = self._time_func(job["x"])
+            if self.verbose:
+                print(f"Simulated runtime of job at {job['x']}:{job['t']}")
+        else:
+            job["t"] = np.random.rand()
+        return job
+
 class JobExecutor(ExecutorBase):
     """Async controller that interacts with external async function calls
 

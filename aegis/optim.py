@@ -115,6 +115,7 @@ class AsyncBO:
         q=1,
         time_func=time_dists.halfnorm(),
         verbose=False,
+        interface="job"
     ):
         self.f = func
         self.Xtr = Xtr
@@ -128,9 +129,16 @@ class AsyncBO:
         self.time_func = time_func
         self.verbose = verbose
 
-        self.interface = executor.SimExecutorJumpToCompletedJob(
-            n_workers=self.n_workers, time_func=time_func, verbose=False,
-        )
+        interfaces = {
+            "job": executor.SimExecutorJumpToCompletedJob(
+                n_workers=n_workers, time_func=time_func, verbose=verbose
+            ),
+            "job-dependant": executor.SimExecutorJumpToCompletedJobProblemDependant(
+                n_workers=n_workers, time_func=time_func, verbose=verbose
+            )
+        }
+
+        self.interface = interfaces[interface]
 
         self.dtype = Ytr.dtype
 
