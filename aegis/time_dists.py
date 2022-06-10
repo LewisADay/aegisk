@@ -39,3 +39,53 @@ class exponential(timefunc):
 
     def __call__(self, n=1):
         return np.random.exponential(scale=self.scale, size=n)
+
+class consttime(timefunc):
+    def __init__(self, a=1):
+        timefunc.__init__(self, "const")
+        
+        self.a = a
+        
+    def __call__(self, x, n=1):
+        return np.ones((len(x),)) * self.a
+        
+    
+class gausstime(timefunc):
+    def __init__(self, prob, scale=None):
+        timefunc.__init__(self, "gauss")
+        
+        self.prob = prob
+        
+        if scale is None:
+            scale = np.sqrt((prob.lb + prob.ub) / 2)
+        
+        self.scale = scale
+        
+    def __call__(self, x, n=1):
+        return scipy.stats.norm.pdf(x, (self.prob.lb+self.prob.ub)/2, self.scale).flatten()
+    
+class corrtime(timefunc):
+    def __init__(self, prob, a=1, name=None):
+        if name is None:
+            timefunc.__init__(self, "corr")
+        else:
+            timefunc.__init__(self, name)
+        
+        self.prob = prob
+        self.a = a
+        self.yopt = self.prob.yopt
+    
+    def __call__(self, x, n=1):
+        return (self.prob(x)-self.yopt) * self.a
+    
+class negcorrtime(corrtime):
+    def __init__(self, prob, a=1):
+        corrtime.__init__(self, prob, a, "negcorr")
+        
+        _x = np.arange(prob.lb, prob.ub, 1e-5)
+        self.full_range = prob(_x)
+        self.max = max(self.full_range) - self.yopt
+    
+    def __call__(self, x, n=1):
+        #return self.max - (self.prob(x)-self.yopt) * self.a
+        return 1/(self.prob(x) - self.yopt + 100)
