@@ -5,25 +5,25 @@ from . import gp, test_problems, transforms, util, executor, time_dists, batch
 
 
 def perform_optimisation(
-    problem_name,
+    problem_class,
     problem_params,
     run_no,
     budget,
     n_workers,
-    acq_name,
+    acq_class,
     acq_params,
-    time_name,
+    time_func,
     save_every=10,
     repeat_no=None,
 ):
 
     # set up the saving paths
     save_path = util.generate_save_filename(
-        time_name,
-        problem_name,
+        time_func.name,
+        problem_class.name,
         budget,
         n_workers,
-        acq_name,
+        acq_class.name,
         run_no,
         problem_params,
         acq_params,
@@ -35,7 +35,7 @@ def perform_optimisation(
         print("Loading saved run")
     else:
         load_path = util.generate_data_filename(
-            problem_name, run_no, problem_params, repeat_no=repeat_no
+            problem_class.name, run_no, problem_params, repeat_no=repeat_no
         )
 
     # load the training data
@@ -50,17 +50,10 @@ def perform_optimisation(
     print(f"Training data shape: {Xtr.shape}")
 
     # load the problem instance
-    f = getattr(test_problems, problem_name)(**problem_params)
+    f = problem_class(**problem_params)
 
     # wrap the problem for torch and so that it resides in [0, 1]^d
     f = util.TorchProblem(util.UniformProblem(f))
-
-    # instantiate the time function
-    time_class = getattr(time_dists, time_name)
-    time_func = time_class()
-
-    # get the acquisition function class
-    acq_class = getattr(batch, acq_name)
 
     # run the BO
     asbo = AsyncBO(
@@ -78,12 +71,12 @@ def perform_optimisation(
 
     # useful stuff to keep a record of
     save_dict = {
-        "problem_name": problem_name,
+        "problem_name": problem_class.name,
         "problem_params": problem_params,
         "q": 1,
         "n_workers": n_workers,
-        "acq_name": acq_name,
-        "time_name": time_name,
+        "acq_name": acq_class.name,
+        "time_name": time_func.name,
         "budget": budget,
     }
 
