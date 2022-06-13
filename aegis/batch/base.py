@@ -27,7 +27,8 @@ class BaseBatchBO:
         expected to be a tensor containing n d-dimensional locations.
     """
 
-    def __init__(self, model, lb, ub, under_evaluation=None):
+    def __init__(self, model, lb, ub, under_evaluation=None, name="BaseBatchBO"):
+        self.name = name
         self.model = model
         self.lb = lb
         self.ub = ub

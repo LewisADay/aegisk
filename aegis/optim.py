@@ -1,8 +1,8 @@
 import os
 import torch
 import numpy as np
+import inspect
 from . import gp, test_problems, transforms, util, executor, time_dists, batch
-
 
 def perform_optimisation(
     problem_class,
@@ -17,13 +17,25 @@ def perform_optimisation(
     repeat_no=None,
 ):
 
+    #### Remember this doesn't actually work, but is functional for now
+    #### In the event it's an end chain problem/acq function class they wont have
+    #### an argument 'name', least of all a default for that argument
+
+    # get acq name
+    inspector = inspect.signature(acq_class).parameters.items()
+    inspector = {k: v.default for k, v in inspector}
+    acq_name = inspector["name"]
+
+    # get problem name
+    problem_name = problem_class().name
+
     # set up the saving paths
     save_path = util.generate_save_filename(
         time_func.name,
-        problem_class.name,
+        problem_name,
         budget,
         n_workers,
-        acq_class.name,
+        acq_name,
         run_no,
         problem_params,
         acq_params,
@@ -33,9 +45,10 @@ def perform_optimisation(
     if os.path.exists(save_path):
         load_path = save_path
         print("Loading saved run")
+        print(f"{load_path:s}")
     else:
         load_path = util.generate_data_filename(
-            problem_class.name, run_no, problem_params, repeat_no=repeat_no
+            problem_name, run_no, problem_params, repeat_no=repeat_no
         )
 
     # load the training data
@@ -71,11 +84,11 @@ def perform_optimisation(
 
     # useful stuff to keep a record of
     save_dict = {
-        "problem_name": problem_class.name,
+        "problem_name":problem_name,
         "problem_params": problem_params,
         "q": 1,
         "n_workers": n_workers,
-        "acq_name": acq_class.name,
+        "acq_name": acq_name,
         "time_name": time_func.name,
         "budget": budget,
     }
@@ -108,7 +121,7 @@ class AsyncBO:
         q=1,
         time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job"
+        interface="job-dependant"
     ):
         self.f = func
         self.Xtr = Xtr

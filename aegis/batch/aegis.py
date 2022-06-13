@@ -41,6 +41,7 @@ class aegisBase(BatchTS):
         n_features,
         n_opt_samples,
         n_opt_bfgs,
+        name="aegisBase",
     ):
 
         BatchTS.__init__(
@@ -52,6 +53,7 @@ class aegisBase(BatchTS):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
+            name,
         )
 
         self.epsilon = epsilon_chooser(epsilon, self.dim)
@@ -81,6 +83,7 @@ class aegisExploitBase(aegisBase):
         n_features,
         n_opt_samples,
         n_opt_bfgs,
+        name="aegisExploitBase",
     ):
 
         aegisBase.__init__(
@@ -93,6 +96,7 @@ class aegisExploitBase(aegisBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
+            name=name,
         )
 
         # number of workers
@@ -164,6 +168,7 @@ class aegisExploitRandom(SelectionRandom, aegisExploitBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
+        name = "aegisExploitRandom"
         aegisExploitBase.__init__(
             self,
             model,
@@ -176,6 +181,7 @@ class aegisExploitRandom(SelectionRandom, aegisExploitBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
+            name=name,
         )
 
         SelectionRandom.__init__(self)
@@ -195,6 +201,7 @@ class aegisExploitParetoFront(SelectionParetoFront, aegisExploitBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
+        name = "aegisExploitParetoFront"
         aegisExploitBase.__init__(
             self,
             model,
@@ -207,6 +214,7 @@ class aegisExploitParetoFront(SelectionParetoFront, aegisExploitBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
+            name=name,
         )
 
         SelectionParetoFront.__init__(self)

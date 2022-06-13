@@ -5,8 +5,8 @@ from ..util import acq_func_getter
 
 
 class HalluBaseBatchBO(BaseBatchBO):
-    def __init__(self, model, lb, ub, under_evaluation):
-        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation)
+    def __init__(self, model, lb, ub, under_evaluation, name="HalluBaseBatchBO"):
+        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation, name=name)
 
         if (under_evaluation is not None) and (under_evaluation.numel() != 0):
             self._add_locations(under_evaluation)
@@ -67,7 +67,8 @@ class HalluBatchBO(HalluBaseBatchBO, AcqBaseBatchBO):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        HalluBaseBatchBO.__init__(self, model, lb, ub, under_evaluation)
+        name = "HalluBatchBO"
+        HalluBaseBatchBO.__init__(self, model, lb, ub, under_evaluation, name)
 
         AcqBaseBatchBO.__init__(
             self,
@@ -78,6 +79,7 @@ class HalluBatchBO(HalluBaseBatchBO, AcqBaseBatchBO):
             acq_name,
             n_opt_samples,
             n_opt_bfgs,
+            name=name,
         )
 
     @property

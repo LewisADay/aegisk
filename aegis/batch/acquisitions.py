@@ -14,8 +14,9 @@ class AcqBaseBatchBO(BaseBatchBO):
         acq_name,
         n_opt_samples,
         n_opt_bfgs,
+        name="AcqBaseBatchBO",
     ):
-        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation)
+        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation, name)
 
         self.n_opt_samples = n_opt_samples
         self.n_opt_bfgs = n_opt_bfgs
