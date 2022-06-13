@@ -1,5 +1,5 @@
 import numpy as np
-
+import scipy
 
 class timefunc:
     def __init__(self, name):
