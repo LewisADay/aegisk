@@ -1,0 +1,12 @@
+
+Acq Funcs:
+- EI
+- UCB
+- Greedy Ratio
+- Greedy EI/t Ratio
+- Greedy UCB/t Ratio
+
+
+For scalar / Gaussian we use inverse (reciprocal) Gaussian distribution
+
+scalar * inverse Gaussian form determined in tests.ipynb
