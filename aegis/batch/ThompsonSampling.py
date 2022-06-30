@@ -32,9 +32,8 @@ class BatchTS(BaseBatchBO):
         n_features=2000,
         n_opt_samples=5000,
         n_opt_bfgs=10,
-        name = "BatchTS",
     ):
-        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation, name=name)
+        BaseBatchBO.__init__(self, model, lb, ub, under_evaluation)
 
         self.n_features = n_features
         self.n_opt_samples = n_opt_samples
@@ -114,7 +113,6 @@ class BatchTSHallu(BatchTS, HalluBaseBatchBO):
         n_opt_samples=5000,
         n_opt_bfgs=10,
     ):
-        name = "BatchTSHallu"
         BatchTS.__init__(
             self,
             model,
@@ -124,7 +122,6 @@ class BatchTSHallu(BatchTS, HalluBaseBatchBO):
             n_features=n_features,
             n_opt_samples=n_opt_samples,
             n_opt_bfgs=n_opt_bfgs,
-            name=name,
         )
         HalluBaseBatchBO.__init__(self, model, lb, ub, under_evaluation)
 

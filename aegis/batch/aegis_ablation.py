@@ -19,7 +19,7 @@ class ablationNoExploitRS(SelectionRandom, aegisBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "ablationNoExploitRS"
+
         aegisBase.__init__(
             self,
             model,
@@ -30,7 +30,6 @@ class ablationNoExploitRS(SelectionRandom, aegisBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
         SelectionRandom.__init__(self)
 
@@ -49,7 +48,7 @@ class ablationNoExploitPF(SelectionParetoFront, aegisBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "ablationNoExploitPF"
+
         aegisBase.__init__(
             self,
             model,
@@ -60,7 +59,6 @@ class ablationNoExploitPF(SelectionParetoFront, aegisBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
         SelectionParetoFront.__init__(self)
 
@@ -82,7 +80,6 @@ class ablationNoSamplepathBase(aegisExploitBase):
         n_features,
         n_opt_samples,
         n_opt_bfgs,
-        name="ablationNoSamplepathBase",
     ):
         aegisExploitBase.__init__(
             self,
@@ -96,7 +93,6 @@ class ablationNoSamplepathBase(aegisExploitBase):
             n_features=n_features,
             n_opt_samples=n_opt_samples,
             n_opt_bfgs=n_opt_bfgs,
-            name=name,
         )
 
     def _get_next(self):
@@ -131,7 +127,6 @@ class ablationNoSamplepathRS(SelectionRandom, ablationNoSamplepathBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "ablationNoSamplepathRS"
         ablationNoSamplepathBase.__init__(
             self,
             model,
@@ -143,7 +138,6 @@ class ablationNoSamplepathRS(SelectionRandom, ablationNoSamplepathBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
         SelectionRandom.__init__(self)
 
@@ -161,7 +155,6 @@ class ablationNoSamplepathPF(SelectionParetoFront, ablationNoSamplepathBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "ablationNoSamplepathPF"
         ablationNoSamplepathBase.__init__(
             self,
             model,
@@ -173,7 +166,6 @@ class ablationNoSamplepathPF(SelectionParetoFront, ablationNoSamplepathBase):
             n_features,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
         SelectionParetoFront.__init__(self)
 
@@ -194,7 +186,7 @@ class ablationNoRandom(aegisExploitBase):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "ablationNoRandom"
+
         aegisExploitBase.__init__(
             self,
             model,
@@ -207,7 +199,6 @@ class ablationNoRandom(aegisExploitBase):
             n_features=n_features,
             n_opt_samples=n_opt_samples,
             n_opt_bfgs=n_opt_bfgs,
-            name=name,
         )
 
     def _get_next(self):

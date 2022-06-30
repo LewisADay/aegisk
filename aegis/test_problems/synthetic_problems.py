@@ -26,7 +26,6 @@ class WangFreitas:
     """
 
     def __init__(self):
-        self.name = "WangFreitas"
         self.dim = 1
         self.lb = np.zeros(self.dim)
         self.ub = np.ones(self.dim)
@@ -61,7 +60,6 @@ class Ackley:
     """
 
     def __init__(self, d=2):
-        self.name = "Ackley"
         self.dim = d
         self.lb = np.full(self.dim, -32.768)
         self.ub = np.full(self.dim, 32.768)
@@ -98,7 +96,6 @@ class Bukin6:
     """
 
     def __init__(self):
-        self.name = "Bukin6"
         self.dim = 2
         self.lb = np.array([-15.0, -3.0])
         self.ub = np.array([-5.0, 3.0])
@@ -128,7 +125,6 @@ class CrossInTray:
     """
 
     def __init__(self):
-        self.name = "CrossInTray"
         self.dim = 2
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -167,7 +163,6 @@ class DropWave:
     """
 
     def __init__(self):
-        self.name = "DropWave"
         self.dim = 2
         self.lb = np.full(self.dim, -5.12)
         self.ub = np.full(self.dim, 5.12)
@@ -197,7 +192,6 @@ class Eggholder:
     """
 
     def __init__(self):
-        self.name = "Eggholder"
         self.dim = 2
         self.lb = np.full(self.dim, -512.0)
         self.ub = np.full(self.dim, 512.0)
@@ -229,7 +223,6 @@ class GramacyLee:
     """
 
     def __init__(self):
-        self.name = "GramacyLee"
         self.dim = 1
         self.lb = np.full(self.dim, 0.5)
         self.ub = np.full(self.dim, 2.5)
@@ -260,7 +253,6 @@ class Griewank:
     """
 
     def __init__(self, d=2, lb=-5.0, ub=5):
-        self.name = "Griewank"
         self.dim = d
         self.lb = np.full(self.dim, lb, dtype="float")
         self.ub = np.full(self.dim, ub, dtype="float")
@@ -293,7 +285,6 @@ class HolderTable:
     """
 
     def __init__(self):
-        self.name = "HolderTable"
         self.dim = 2
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -330,7 +321,6 @@ class Levy:
     """
 
     def __init__(self, d=2):
-        self.name = "Levy"
         self.dim = d
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -368,7 +358,6 @@ class Levy13:
     """
 
     def __init__(self):
-        self.name = "Levy13"
         self.dim = 2
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -403,7 +392,6 @@ class Rastrigin:
     """
 
     def __init__(self, d=2):
-        self.name = "Rastrigin"
         self.dim = d
         self.lb = np.full(self.dim, -5.12)
         self.ub = np.full(self.dim, 5.12)
@@ -433,7 +421,6 @@ class Schaffer2:
     """
 
     def __init__(self):
-        self.name = "Schaffer2"
         self.dim = 2
         self.lb = np.full(self.dim, -100.0)
         self.ub = np.full(self.dim, 100.0)
@@ -465,7 +452,6 @@ class Schaffer4:
     """
 
     def __init__(self):
-        self.name = "Schaffer4"
         self.dim = 2
         self.lb = np.full(self.dim, -100.0)
         self.ub = np.full(self.dim, 100.0)
@@ -496,7 +482,6 @@ class Schwefel:
     """
 
     def __init__(self, d=2):
-        self.name = "Schwefel"
         self.dim = d
         self.lb = np.full(self.dim, -500.0)
         self.ub = np.full(self.dim, 500.0)
@@ -526,7 +511,6 @@ class Schubert:
     """
 
     def __init__(self):
-        self.name = "Schubert"
         self.dim = 2
         self.lb = np.full(self.dim, -5.12)
         self.ub = np.full(self.dim, 5.12)
@@ -562,7 +546,6 @@ class Bohachevsky1:
     """
 
     def __init__(self):
-        self.name = "Bohachevsky1"
         self.dim = 2
         self.lb = np.full(self.dim, -100.0)
         self.ub = np.full(self.dim, 100.0)
@@ -593,7 +576,6 @@ class Perm0:
     """
 
     def __init__(self, d=2, beta=10.0):
-        self.name = "Perm0"
         self.dim = d
         self.lb = np.full(self.dim, -self.dim)
         self.ub = np.full(self.dim, self.dim)
@@ -630,7 +612,6 @@ class RotatedHyperEllipsiod:
     """
 
     def __init__(self, d=2):
-        self.name = "RotatedHyperEllipsiod"
         self.dim = d
         self.lb = np.full(self.dim, -65.536)
         self.ub = np.full(self.dim, 65.536)
@@ -658,7 +639,6 @@ class Sphere:
     """
 
     def __init__(self, d=2):
-        self.name = "Sphere"
         self.dim = d
         self.lb = np.full(self.dim, -5.12)
         self.ub = np.full(self.dim, 5.12)
@@ -685,7 +665,6 @@ class SumDifferentPowers:
     """
 
     def __init__(self, d=2):
-        self.name = "SumDifferentPowers"
         self.dim = d
         self.lb = np.full(self.dim, -1.0)
         self.ub = np.full(self.dim, 1.0)
@@ -715,7 +694,6 @@ class SumSquares:
     """
 
     def __init__(self, d=2):
-        self.name = "SumSquares"
         self.dim = d
         self.lb = np.full(self.dim, -5.12)
         self.ub = np.full(self.dim, 5.12)
@@ -745,7 +723,6 @@ class Trid:
     """
 
     def __init__(self, d=2):
-        self.name = "Trid"
         self.dim = d
         self.lb = np.full(self.dim, -self.dim ** 2)
         self.ub = np.full(self.dim, self.dim ** 2)
@@ -775,7 +752,6 @@ class Booth:
     """
 
     def __init__(self):
-        self.name = "Booth"
         self.dim = 2
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -805,7 +781,6 @@ class Matyas:
     """
 
     def __init__(self):
-        self.name = "Matyas"
         self.dim = 2
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -835,7 +810,6 @@ class McCormick:
     """
 
     def __init__(self):
-        self.name = "McCormick"
         self.dim = 2
         self.lb = np.array([-1.5, -3.0])
         self.ub = np.array([4.0, 4.0])
@@ -870,7 +844,6 @@ class PowerSum:
     """
 
     def __init__(self, d=2):
-        self.name = "PowerSum"
         self.dim = d
         self.lb = np.zeros(self.dim)
         self.ub = np.arange(1, self.dim + 1)
@@ -906,7 +879,6 @@ class Zakharov:
     """
 
     def __init__(self, d=2):
-        self.name = "Zakharov"
         self.dim = d
         self.lb = np.full(self.dim, -5.0)
         self.ub = np.full(self.dim, 10.0)
@@ -939,7 +911,6 @@ class ThreeHumpCamel:
     """
 
     def __init__(self):
-        self.name = "ThreeHumpCamel"
         self.dim = 2
         self.lb = np.full(self.dim, -5.0)
         self.ub = np.full(self.dim, 5.0)
@@ -969,7 +940,6 @@ class SixHumpCamel:
     """
 
     def __init__(self):
-        self.name = "SixHumpCamel"
         self.dim = 2
         self.lb = np.array([-3.0, -2.0])
         self.ub = np.array([3.0, 2.0])
@@ -1001,7 +971,6 @@ class DixonPrice:
     """
 
     def __init__(self, d=2):
-        self.name = "DixonPrice"
         self.dim = d
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -1039,7 +1008,6 @@ class Rosenbrock:
     """
 
     def __init__(self, d=2):
-        self.name = "Rosenbrock"
         self.dim = d
         self.lb = np.full(self.dim, -5.0)
         self.ub = np.full(self.dim, 10.0)
@@ -1070,7 +1038,6 @@ class DeJong5:
     """
 
     def __init__(self):
-        self.name = "DeJong5"
         self.dim = 2
         self.lb = np.full(self.dim, -65.536)
         self.ub = np.full(self.dim, 65.536)
@@ -1109,7 +1076,6 @@ class Easom:
     """
 
     def __init__(self):
-        self.name = "Easom"
         self.dim = 2
         self.lb = np.full(self.dim, -100.0)
         self.ub = np.full(self.dim, 100.0)
@@ -1141,7 +1107,6 @@ class Michalewicz:
     """
 
     def __init__(self, d=2, m=10):
-        self.name = "Michalewicz"
         self.dim = d
         self.lb = np.full(self.dim, 0.0)
         self.ub = np.full(self.dim, np.pi)
@@ -1189,7 +1154,6 @@ class Beale:
     """
 
     def __init__(self):
-        self.name = "Beale"
         self.dim = 2
         self.lb = np.full(self.dim, -4.5)
         self.ub = np.full(self.dim, 4.5)
@@ -1219,7 +1183,6 @@ class Branin:
     """
 
     def __init__(self):
-        self.name = "Branin"
         self.dim = 2
         self.lb = np.array([-5.0, 0.0])
         self.ub = np.array([10.0, 15.0])
@@ -1263,7 +1226,6 @@ class Colville:
     """
 
     def __init__(self):
-        self.name = "Colville"
         self.dim = 4
         self.lb = np.full(self.dim, -10.0)
         self.ub = np.full(self.dim, 10.0)
@@ -1295,7 +1257,6 @@ class Forrester:
     """
 
     def __init__(self):
-        self.name = "Forrester"
         self.dim = 1
         self.lb = np.full(self.dim, 0.0)
         self.ub = np.full(self.dim, 1.0)
@@ -1324,7 +1285,6 @@ class GoldsteinPrice:
     """
 
     def __init__(self):
-        self.name = "GoldsteinPrice"
         self.dim = 2
         self.lb = np.full(self.dim, -2.0)
         self.ub = np.full(self.dim, 2.0)
@@ -1367,7 +1327,6 @@ class Hartmann3:
     """
 
     def __init__(self):
-        self.name = "Hartmann3"
         self.dim = 3
         self.lb = np.zeros(self.dim)
         self.ub = np.ones(self.dim)
@@ -1420,7 +1379,6 @@ class Hartmann6:
     """
 
     def __init__(self):
-        self.name = "Hartmann6"
         self.dim = 6
         self.lb = np.zeros(self.dim)
         self.ub = np.ones(self.dim)
@@ -1476,7 +1434,6 @@ class Perm:
     """
 
     def __init__(self, d=2, beta=0.5):
-        self.name = "Perm"
         self.dim = d
         self.lb = np.full(self.dim, -self.dim)
         self.ub = np.full(self.dim, self.dim)
@@ -1514,7 +1471,6 @@ class Powell:
     """
 
     def __init__(self, d=4):
-        self.name = "Powell"
         self.dim = d
         self.lb = np.full(self.dim, -4.0)
         self.ub = np.full(self.dim, 5.0)
@@ -1556,7 +1512,6 @@ class Shekel:
     """
 
     def __init__(self, m=10):
-        self.name = "Shekel"
         self.dim = 4
         self.lb = np.full(self.dim, 0.0)
         self.ub = np.full(self.dim, 10.0)
@@ -1605,7 +1560,6 @@ class StyblinskiTang:
     """
 
     def __init__(self, d=2):
-        self.name = "StyblinskiTang"
         self.dim = d
         self.lb = np.full(self.dim, -5.0)
         self.ub = np.full(self.dim, 5.0)

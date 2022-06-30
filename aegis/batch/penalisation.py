@@ -16,7 +16,6 @@ class PenalisationBaseBatchBO(AcqBaseBatchBO):
         acq_name,
         n_opt_samples,
         n_opt_bfgs,
-        name="PenalisationBaseBatchBO",
     ):
         AcqBaseBatchBO.__init__(
             self,
@@ -27,7 +26,6 @@ class PenalisationBaseBatchBO(AcqBaseBatchBO):
             acq_name,
             n_opt_samples,
             n_opt_bfgs,
-            name,
         )
 
         self._acq = None
@@ -76,7 +74,6 @@ class LocalPenalisationBatchBO(PenalisationBaseBatchBO):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "LocalPenalisationBatchBO"
         PenalisationBaseBatchBO.__init__(
             self,
             model,
@@ -86,7 +83,6 @@ class LocalPenalisationBatchBO(PenalisationBaseBatchBO):
             acq_name,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
 
     def _get_penalisation_acq_func(self):
@@ -106,7 +102,6 @@ class HardLocalPenalisationBatchBO(PenalisationBaseBatchBO):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        name = "HardLocalPenalisationBatchBO"
         PenalisationBaseBatchBO.__init__(
             self,
             model,
@@ -116,7 +111,6 @@ class HardLocalPenalisationBatchBO(PenalisationBaseBatchBO):
             acq_name,
             n_opt_samples,
             n_opt_bfgs,
-            name=name,
         )
 
     def _get_penalisation_acq_func(self):
@@ -130,7 +124,6 @@ class LocalPenalisation(botorch.acquisition.AnalyticAcquisitionFunction):
 
         botorch.acquisition.AnalyticAcquisitionFunction.__init__(self, model)
 
-        self.name = "LocalPenalisation"
         self.transform = transform
         self.lb = lb
         self.ub = ub
@@ -221,7 +214,6 @@ class HardLocalPenalisation(botorch.acquisition.AnalyticAcquisitionFunction):
 
         botorch.acquisition.AnalyticAcquisitionFunction.__init__(self, model)
 
-        self.name = "HardLocalPenalisation"
         self.lb = lb
         self.ub = ub
         self.transform = transform

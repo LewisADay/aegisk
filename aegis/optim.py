@@ -1,37 +1,25 @@
 import os
 import torch
 import numpy as np
-import inspect
 from . import gp, test_problems, transforms, util, executor, time_dists, batch
 
+
 def perform_optimisation(
-    problem_class,
+    problem_name,
     problem_params,
     run_no,
     budget,
     n_workers,
-    acq_class,
+    acq_name,
     acq_params,
-    time_func,
+    time_name,
     save_every=10,
     repeat_no=None,
 ):
 
-    #### Remember this doesn't actually work, but is functional for now
-    #### In the event it's an end chain problem/acq function class they wont have
-    #### an argument 'name', least of all a default for that argument
-
-    # get acq name
-    inspector = inspect.signature(acq_class).parameters.items()
-    inspector = {k: v.default for k, v in inspector}
-    acq_name = inspector["name"]
-
-    # get problem name
-    problem_name = problem_class().name
-
     # set up the saving paths
     save_path = util.generate_save_filename(
-        time_func.name,
+        time_name,
         problem_name,
         budget,
         n_workers,
@@ -45,7 +33,6 @@ def perform_optimisation(
     if os.path.exists(save_path):
         load_path = save_path
         print("Loading saved run")
-        print(f"{load_path:s}")
     else:
         load_path = util.generate_data_filename(
             problem_name, run_no, problem_params, repeat_no=repeat_no
@@ -63,10 +50,17 @@ def perform_optimisation(
     print(f"Training data shape: {Xtr.shape}")
 
     # load the problem instance
-    f = problem_class(**problem_params)
+    f = getattr(test_problems, problem_name)(**problem_params)
 
     # wrap the problem for torch and so that it resides in [0, 1]^d
     f = util.TorchProblem(util.UniformProblem(f))
+
+    # instantiate the time function
+    time_class = getattr(time_dists, time_name)
+    time_func = time_class()
+
+    # get the acquisition function class
+    acq_class = getattr(batch, acq_name)
 
     # run the BO
     asbo = AsyncBO(
@@ -84,12 +78,12 @@ def perform_optimisation(
 
     # useful stuff to keep a record of
     save_dict = {
-        "problem_name":problem_name,
+        "problem_name": problem_name,
         "problem_params": problem_params,
         "q": 1,
         "n_workers": n_workers,
         "acq_name": acq_name,
-        "time_name": time_func.name,
+        "time_name": time_name,
         "budget": budget,
     }
 

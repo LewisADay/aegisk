@@ -1,21 +1,19 @@
 import os
 import torch
 import numpy as np
-import inspect
 
 from pyDOE2 import lhs
 from . import test_problems, util
 
 
 def generate_training_data_LHS(
-    problem_class,
+    problem_name,
     n_exp_start=1,
     n_exp_end=51,
     n_samples=None,
     n_repeats=None,
     additional_arguments={},
 ):
-
     exp_nos = np.arange(n_exp_start, n_exp_end + 1)
     N = len(exp_nos)
 
@@ -28,7 +26,7 @@ def generate_training_data_LHS(
         )
 
     # get the function class
-    f_class = problem_class
+    f_class = getattr(test_problems, problem_name)
 
     for i, run_no in enumerate(exp_nos):
         # get the optional arguments for this problem instance (if they exist)
@@ -50,7 +48,7 @@ def generate_training_data_LHS(
         for repeat_no in reprange:
 
             save_path = util.generate_data_filename(
-                problem_class().name, run_no, problem_params, repeat_no=repeat_no
+                problem_name, run_no, problem_params, repeat_no=repeat_no
             )
 
             if os.path.exists(save_path):
