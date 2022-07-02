@@ -15,7 +15,11 @@ from .aegis_ablation import (
     ablationNoSamplepathPF,
     ablationNoRandom,
 )
-
+from .ratios import (
+    EITimeRatio,
+    UCBTimeRatio,
+    FuncTimeRatio,
+)
 __all__ = [
     "BatchTS",
     "aegisExploitRandom",
@@ -28,4 +32,7 @@ __all__ = [
     "ablationNoSamplepathRS",
     "ablationNoSamplepathPF",
     "ablationNoRandom",
+    "EITimeRatio",
+    "UCBTimeRatio",
+    "FuncTimeRatio",
 ]

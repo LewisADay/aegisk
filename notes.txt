@@ -10,3 +10,12 @@ Acq Funcs:
 For scalar / Gaussian we use inverse (reciprocal) Gaussian distribution
 
 scalar * inverse Gaussian form determined in tests.ipynb
+
+-----
+
+Reverted to old string based class fetching
+need to integrate changes into getattr fetchable mannor, mainly by making all edits to existing files in appropriate places,
+or by including in relevant __init__.py files so to be captured by the module wide addressing
+
+Need to rewrite ipynb's to reflect these changes, mainly through correctly addressing the time distributions for now
+and making the necessary edits to the appropriate function calls, moving away from the class passthrough structure
