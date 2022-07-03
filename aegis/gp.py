@@ -28,6 +28,8 @@ class GP_FixedNoise(gpytorch.models.ExactGP, GPyTorchModel):
         )
         self.mean_module = gpytorch.means.ZeroMean()
 
+        self.train_y = train_y
+
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)

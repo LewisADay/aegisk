@@ -15,6 +15,8 @@ def perform_optimisation(
     time_name,
     save_every=10,
     repeat_no=None,
+    interface='job',
+    time_acq=False,
 ):
 
     # set up the saving paths
@@ -63,18 +65,34 @@ def perform_optimisation(
     acq_class = getattr(batch, acq_name)
 
     # run the BO
-    asbo = AsyncBO(
-        f,
-        Xtr,
-        Ytr,
-        acq_class,
-        acq_params,
-        budget,
-        n_workers,
-        q=1,
-        time_func=time_func,
-        verbose=True,
-    )
+    if time_acq:
+        asbo = AsyncTimeAcqBO(
+            f,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            q=1,
+            time_func=time_func,
+            verbose=True,
+            interface=interface
+        )
+    else:
+        asbo = AsyncBO(
+            f,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            q=1,
+            time_func=time_func,
+            verbose=True,
+            interface=interface
+        )
 
     # useful stuff to keep a record of
     save_dict = {
@@ -115,7 +133,7 @@ class AsyncBO:
         q=1,
         time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job-dependant"
+        interface="job"
     ):
         self.f = func
         self.Xtr = Xtr
@@ -311,3 +329,159 @@ class AsyncBO:
         }
 
         return resd
+
+class AsyncTimeAcqBO(AsyncBO):
+    def __init__(
+        self,
+        func,
+        Xtr,
+        Ytr,
+        acq_class,
+        acq_params,
+        budget,
+        n_workers,
+        q=1,
+        time_func=time_dists.halfnorm(),
+        verbose=False,
+        interface="job"
+    ):
+        super.__init__(
+            func=func,
+            Xtr=Xtr,
+            Ytr=Ytr,
+            acq_class=acq_class,
+            acq_params=acq_params,
+            budget=budget,
+            n_workers=n_workers,
+            q=q,
+            time_func=time_func,
+            verbose=verbose,
+            interface=interface
+        )
+
+        # sample time function for time of initialised points Xtr
+        for i in range(self.time_taken.shape[0]):
+            if interface == 'job':
+                self.time_taken[i] = time_func()
+            elif interface == 'job-dependant':
+                self.time_taken[i] = time_func(Xtr[i])
+
+    @property
+    def acq(self):
+        if self._acq is None:
+            self._acq = self.acq_class(
+                model=self.model,
+                time_model=self.time_model,
+                lb=self.f.lb,
+                ub=self.f.ub,
+                under_evaluation=self.ue.get(),
+                **self.acq_params,
+            )
+
+        return self._acq
+
+    def _create_and_submit_jobs(self):
+        # only submit up to the budget
+        n_to_submit = np.minimum(
+            self.budget - self.n_submitted,  # total left to submit
+            self.interface.status["n_free_workers"],  # free workers
+        )
+        if n_to_submit < 1:
+            return
+
+        # update the acquisition function ready for use.
+        self.acq.update(self.model, self.ue.get(), self.time_model)
+
+        # get locations to evaluate from the acquisition function, create a
+        # job, and submit it
+        for _ in range(n_to_submit):
+            # get the next location to evaluate
+            x = self.acq.get_next()
+
+            # create the job and submit it
+            job = {"x": x, "f": self.f}
+            self.interface.add_job_to_queue(job)
+
+            # add to under evaluation
+            self.ue.add(x)
+
+            if self.verbose:
+                print("Submitted ->", x.numpy().ravel())
+
+        self.n_submitted += n_to_submit
+
+    def step(self):
+        if self.verbose:
+            print(
+                f" Submitted: {self.n_submitted} / {self.budget}"
+                f" Completed: {self.n_completed} / {self.budget}"
+            )
+
+        # if the optimisation is complete, do nothing.
+        if self.finished:
+            print("finished")
+            return
+
+        # run the jobs until we there's one free
+        if self.n_submitted < self.budget:
+            self.interface.run_until_n_free(self.q)
+
+        # if we've submitted our budget's worth of jobs, keep waiting
+        # until one more worker each time is free. i.e. 1, 2, ..., n_workers
+        else:
+            self.interface.run_until_n_free(
+                self.n_workers - (self.budget - self.n_completed) + 1
+            )
+
+        if self.verbose:
+            print("Time:", self.interface.status["t"])
+
+        # get the completed jobs
+        self._process_completed_jobs()
+
+        # if we've submitted our budget's worth of jobs,
+        # do not submit any more
+        if self.n_submitted == self.budget:
+            return
+
+
+        # Problem gp
+        # scale the output
+        T_out = self.output_transform(self.Ytr)
+        train_y = T_out.scale_mean(self.Ytr)
+        train_x = self.Xtr
+
+        # fit the gp
+        self.model, self.likelihood = gp.create_and_fit_GP(
+            train_x=train_x,
+            train_y=train_y,
+            ls_bounds=self.ls_bounds,
+            out_bounds=self.out_bounds,
+            n_restarts=10,
+            verbose=self.verbose,
+        )
+        self.model.eval()
+
+        # Time gp
+        # scale the output
+        Time_out = self.output_transform(self.time_taken)
+        train_time = Time_out.scale_mean(self.time_taken)
+
+        # fit time gp
+        self.time_model, self.time_likelihood = gp.create_and_fit_GP(
+            train_x=train_x,
+            train_y=train_time,
+            ls_bounds=self.ls_bounds,
+            out_bounds=self.out_bounds,
+            n_restarts=10,
+            verbose=self.verbose,
+        )
+        self.time_model.eval()
+
+        # submit jobs
+        self._create_and_submit_jobs()
+
+        if self.verbose:
+            print("------------------------------")
+            print()
+

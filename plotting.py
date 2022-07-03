@@ -89,9 +89,10 @@ def read_in_results(
 
                                 data = torch.load(fn)
                                 Ytr = data["Ytr"].numpy().ravel()
+                                time = data["time"].numpy().ravel()
                                 n = Ytr.size
 
-                                res[i, :n] = Ytr
+                                res[i, :n] = {"t": time, "y": Ytr}
 
                                 if n != budget:
                                     print("Not full:", fn, Ytr.shape)
@@ -212,11 +213,13 @@ def make_conv_plots(
             xvals = []
 
             for method_name in method_names:
-                Y = D[time_func][n_workers][pn][method_name][:, start:end]
+                Y = D[time_func][n_workers][pn][method_name]['y'][:, start:end]
                 Y = np.log(Y)
 
+                T = D[time_func][n_workers][pn][method_name]['t'][:, start:end]
+
                 yvals.append(Y)
-                xvals.append(x)
+                xvals.append(T)
 
             title = f"{pn:s}, q={n_workers:d}"
 
