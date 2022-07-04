@@ -108,10 +108,12 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
         ei = sigma * (updf + u * ucdf)
         return ei
 
-    @t_batch_mode_transform
     def forward(self, X: Tensor) -> Tensor:
         ei = self._ei(X)
         return ei / self.time_model(X).mean
+
+    def __call__(self, X: Tensor) -> Tensor:
+        return self.forward(X)
 
 
 class EITimeRatio(AcqBaseBatchBO):

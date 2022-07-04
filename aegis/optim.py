@@ -333,7 +333,7 @@ class AsyncBO:
 
         return resd
 
-class AsyncTimeAcqBO(AsyncBO):
+class AsyncTimeAcqBO:
     def __init__(
         self,
         func,
@@ -348,20 +348,50 @@ class AsyncTimeAcqBO(AsyncBO):
         verbose=False,
         interface="job"
     ):
-        AsyncBO.__init__(
-            self=self,
-            func=func,
-            Xtr=Xtr,
-            Ytr=Ytr,
-            acq_class=acq_class,
-            acq_params=acq_params,
-            budget=budget,
-            n_workers=n_workers,
-            q=q,
-            time_func=time_func,
-            verbose=verbose,
-            interface=interface
-        )
+        self.f = func
+        self.Xtr = Xtr
+        self.Ytr = Ytr
+        self.acq_class = acq_class
+        self.acq_params = acq_params
+        self.budget = budget
+        self.n_workers = n_workers
+        self.q = q
+        self.output_transform = getattr(transforms, "Transform_Standardize",)
+        self.time_func = time_func
+        self.verbose = verbose
+
+        interfaces = {
+            "job": executor.SimExecutorJumpToCompletedJob(
+                n_workers=n_workers, time_func=time_func, verbose=verbose
+            ),
+            "job-dependant": executor.SimExecutorJumpToCompletedJobProblemDependant(
+                n_workers=n_workers, time_func=time_func, verbose=verbose
+            )
+        }
+
+        self.interface = interfaces[interface]
+
+        self.dtype = Ytr.dtype
+
+        self.ue = util.UnderEval(self.n_workers, self.f.dim, self.dtype)
+
+        # time storage
+        self.time = torch.zeros_like(Ytr, dtype=self.dtype)
+        self.time_taken = torch.zeros_like(Ytr, dtype=self.dtype)
+
+        # counters
+        self.n_submitted = Xtr.shape[0]
+        self.n_completed = Xtr.shape[0]
+
+        # current iteration number
+        self.init_size = Xtr.shape[0]
+
+        # bounds
+        self.ls_bounds = [1e-4, np.sqrt(Xtr.shape[1])]
+        self.out_bounds = [1e-4, 10]
+
+        # acquisition function, initialised after we have built a model
+        self._acq = None
 
         # sample time function for time of initialised points Xtr
         for i in range(self.time_taken.shape[0]):
@@ -383,6 +413,46 @@ class AsyncTimeAcqBO(AsyncBO):
             )
 
         return self._acq
+
+    @property
+    def finished(self):
+        return self.n_completed == self.budget
+
+    def _process_completed_jobs(self):
+        # get the completed jobs
+        completed_jobs = self.interface.get_completed_jobs()
+        n = len(completed_jobs)
+
+        # storage, so we only cat once
+        _Xtr = torch.zeros((n, self.f.dim), dtype=self.dtype)
+        _Ytr = torch.zeros(n, dtype=self.dtype)
+        _time_taken = torch.zeros(n, dtype=self.dtype)
+        _time = torch.zeros(n, dtype=self.dtype)
+
+        # add the results to the training data
+        for i, job in enumerate(completed_jobs):
+            _Xtr[i] = job["x"]
+            _Ytr[i] = job["y"]
+            _time_taken[i] = torch.as_tensor(job["t"], dtype=self.dtype)
+            _time[i] = self.interface.status["t"]
+
+            # remove from under evaluation
+            self.ue.remove(_Xtr[i])
+
+            if self.verbose:
+                print(
+                    f"Completed -> f(x): {_Ytr[i]:0.3f}",
+                    f"time taken: {_time_taken[i]:0.3f}",
+                )
+
+        # store the results
+        self.Xtr = torch.cat((self.Xtr, _Xtr))
+        self.Ytr = torch.cat((self.Ytr, _Ytr))
+        self.time_taken = torch.cat((self.time_taken, _time_taken))
+        self.time = torch.cat((self.time, _time))
+
+        # add to the completed jobs counter
+        self.n_completed += len(completed_jobs)
 
     def _create_and_submit_jobs(self):
         # only submit up to the budget
@@ -471,14 +541,6 @@ class AsyncTimeAcqBO(AsyncBO):
         Time_out = self.output_transform(self.time_taken)
         train_time = Time_out.scale_mean(self.time_taken)
 
-        #######
-
-        print(type(train_y))
-        print(type(train_time))
-        print(self.time_taken)
-
-        #######
-
         # fit time gp
         self.time_model, self.time_likelihood = gp.create_and_fit_GP(
             train_x=train_x,
@@ -497,3 +559,12 @@ class AsyncTimeAcqBO(AsyncBO):
             print("------------------------------")
             print()
 
+    def get_results(self):
+        resd = {
+            "Xtr": self.Xtr,
+            "Ytr": self.Ytr,
+            "time_taken": self.time_taken,
+            "time": self.time,
+        }
+
+        return resd
