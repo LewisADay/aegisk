@@ -59,7 +59,10 @@ def perform_optimisation(
 
     # instantiate the time function
     time_class = getattr(time_dists, time_name)
-    time_func = time_class()
+    if interface == "job":
+        time_func = time_class()
+    elif interface == "job-dependant":
+        time_func = time_class(f)
 
     # get the acquisition function class
     acq_class = getattr(batch, acq_name)
@@ -345,7 +348,8 @@ class AsyncTimeAcqBO(AsyncBO):
         verbose=False,
         interface="job"
     ):
-        super.__init__(
+        AsyncBO.__init__(
+            self=self,
             func=func,
             Xtr=Xtr,
             Ytr=Ytr,
@@ -362,9 +366,9 @@ class AsyncTimeAcqBO(AsyncBO):
         # sample time function for time of initialised points Xtr
         for i in range(self.time_taken.shape[0]):
             if interface == 'job':
-                self.time_taken[i] = time_func()
+                self.time_taken[i] = torch.as_tensor(time_func())
             elif interface == 'job-dependant':
-                self.time_taken[i] = time_func(Xtr[i])
+                self.time_taken[i] = torch.as_tensor(time_func(Xtr[i]))
 
     @property
     def acq(self):
@@ -466,6 +470,14 @@ class AsyncTimeAcqBO(AsyncBO):
         # scale the output
         Time_out = self.output_transform(self.time_taken)
         train_time = Time_out.scale_mean(self.time_taken)
+
+        #######
+
+        print(type(train_y))
+        print(type(train_time))
+        print(self.time_taken)
+
+        #######
 
         # fit time gp
         self.time_model, self.time_likelihood = gp.create_and_fit_GP(

@@ -46,7 +46,7 @@ class consttime(timefunc):
         
         self.a = a
         
-    def __call__(self, x, n=1):
+    def __call__(self, n=1):
         return np.ones((len(x),)) * self.a
         
     

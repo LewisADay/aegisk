@@ -2,7 +2,10 @@
 import botorch
 import numpy as np
 import torch
+from torch import Tensor
+from torch.distributions import Normal
 from .acquisitions import AcqBaseBatchBO
+from botorch.utils.transforms import t_batch_mode_transform
 
 class EI(AcqBaseBatchBO):
     def __init__(
@@ -29,7 +32,7 @@ class EI(AcqBaseBatchBO):
 
     @property
     def acq(self):
-        return botorch.acquisition.ExpectedImprovement(self.model, best_f=torch.min(self.model.train_targets), maximize=False)
+        return botorch.acquisition.ExpectedImprovement(self.model, best_f=self.model.train_targets.min(), maximize=False)
 
 class UCB(AcqBaseBatchBO):
     def __init__(
@@ -61,6 +64,56 @@ class UCB(AcqBaseBatchBO):
     def acq(self):
         return botorch.acquisition.UpperConfidenceBound(self.model, beta = self.beta, maximize=False)
 
+class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
+    def __init__(
+        self,
+        model,
+        time_model,
+        best_f,
+        posterior_transform = None,
+        maximize: bool = True,
+        **kwargs,
+    ) -> None:
+
+        super().__init__(
+            model=model,
+            posterior_transform=posterior_transform,
+            **kwargs
+            )
+
+        self.maximize = maximize
+        self.time_model = time_model
+
+        if not torch.is_tensor(best_f):
+            best_f = torch.tensor(best_f)
+
+        self.register_buffer("best_f", best_f)
+
+    def _ei(self, X: Tensor) -> Tensor:
+        self.best_f = self.best_f.to(X)
+        posterior = self.model.posterior(
+            X=X, posterior_transform=self.posterior_transform
+        )
+        mean = posterior.mean
+        # deal with batch evaluation and broadcasting
+        view_shape = mean.shape[:-2] if mean.shape[-2] == 1 else mean.shape[:-1]
+        mean = mean.view(view_shape)
+        sigma = posterior.variance.clamp_min(1e-9).sqrt().view(view_shape)
+        u = (mean - self.best_f.expand_as(mean)) / sigma
+        if not self.maximize:
+            u = -u
+        normal = Normal(torch.zeros_like(u), torch.ones_like(u))
+        ucdf = normal.cdf(u)
+        updf = torch.exp(normal.log_prob(u))
+        ei = sigma * (updf + u * ucdf)
+        return ei
+
+    @t_batch_mode_transform
+    def forward(self, X: Tensor) -> Tensor:
+        ei = self._ei(X)
+        return ei / self.time_model(X).mean
+
+
 class EITimeRatio(AcqBaseBatchBO):
     def __init__(
         self,
@@ -89,14 +142,21 @@ class EITimeRatio(AcqBaseBatchBO):
 
     @property
     def acq(self):
-        _ei = botorch.acquisition.ExpectedImprovement(self.model, best_f = torch.min(self.model.train_targets), maximize=False)
-        _time = self.time_model
-        _times = lambda test_x: _time(test_x).means
-        return lambda test_x: _ei(test_x) / _times(test_x)
+        return EITimeAcq(
+            model = self.model,
+            time_model=self.time_model,
+            best_f = self.model.train_targets.min(),
+        )
 
     def update(self, model, under_evaluation, time_model):
-        super.update(model, under_evaluation)
+        """
+        Updates the acquisition function with the latest model and locations
+        under evaluation.
+        """
+        self.model = model
+        self.ue = under_evaluation
         self.time_model = time_model
+        self.updated = True
 
 class UCBTimeRatio():
     pass
