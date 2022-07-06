@@ -198,77 +198,126 @@ def time_plot(
     ax.set_ylabel(ylabel, fontsize=LABEL_FONTSIZE)
     ax.set_title(title, fontsize=TITLE_FONTSIZE)
 
+    # Make our data into arrays
     yvals = np.array(yvals)
     xvals = np.array(xvals)
 
+    # Extract information about the experiment for readability
     no_methods, no_runs, budget = yvals.shape
 
+    # Check these are the same for the x and y vals
     assert (no_methods, no_runs, budget) == xvals.shape
 
-    # get earliest time
+    # Storage lists for axis bounds
+    min_t = []
+    max_t = []
 
+    ## Extract data
+    # For each method in this experiment, we get it's data
     for method in range(no_methods):
+
+        # Initialise output lists
         out_times = []
         Q1 = []
         Q2 = []
         Q3 = []
+
+        # Initialise intermediate lists
         runs = []
         times = []
         regrets = []
+
+        # For each run of this method
         for run in range(no_runs):
+            # For each function evaluation step
             for k in range(budget):
+                # Record which run we are one
                 runs.append(run)
+                # Extract the time of this evaluation
                 times.append(xvals[method][run,k])
+                # Extract the regret of this evaluation
                 regrets.append(yvals[method][run,k])
 
-        # Data processing
+        ## Data processing
+        # Convert intermediate lists to arrays for indexing
         runs = np.array(runs)
         times = np.array(times)
         regrets = np.array(regrets)
+
+        # For each time we recorded (len(times) = budget*no_runs)
         for k in range(len(times)):
-            # For each row
+            # Get the data that gave that time
             run = runs[k]
             time = times[k]
+
+            # Record the regrets of the various runs at this time
             regret = [regrets[k]]
+            # For each run that isn't the one which gave this time data
             for j in [_j for _j in range(no_runs) if _j != run]:
+                # Get all the regrets of that run which are less than the queried time
                 tmp_regret = regrets[np.logical_and(runs == j, times < time)]
+                # Add to our regret list the minimum such regret experienced by
+                # that run before the present time
                 if any(tmp_regret):
                     regret.append(min(tmp_regret))
+            
+            # Add the final data to the output lists
             out_times.append(time)
             Q1.append(np.quantile(regret, .25))
             Q2.append(np.quantile(regret, .50))
             Q3.append(np.quantile(regret, .75))
         
+        # Convert output lists to arrays for indexing
         out_times = np.array(out_times)
         Q1 = np.array(Q1)
         Q2 = np.array(Q2)
         Q3 = np.array(Q3)
 
+        # Sort the data by time, so it is in the correct order
         sort_indices = np.argsort(out_times)
-
         out_times = out_times[sort_indices]
         Q1 = Q1[sort_indices]
         Q2 = Q2[sort_indices]
         Q3 = Q3[sort_indices]
 
-        skip = 5
-        out_times = out_times[skip:]
-        Q1 = Q1[skip:]
-        Q2 = Q2[skip:]
-        Q3 = Q3[skip:]
+        # Keep track of the limits of time, for axis limits later
+        min_t.append(np.min(out_times))
+        max_t.append(np.max(out_times))
         
+        # Get color for this method
         color = colors[method]
 
+        ## Plots
+        # If we want shaded quartile bounds, shade the quartile bounds
         if use_fill_between:
             ax.fill_between(out_times, Q1, Q3, color=color, alpha=0.15)
 
+        # Plot quartiles
         ax.plot(out_times, Q2, color=color)
         ax.plot(out_times, Q1, "--", color=color, alpha=0.15)
         ax.plot(out_times, Q3, "--", color=color, alpha=0.15)
 
     
     # Set xlim
-    #min_t = np.min([np.min(method_df['time']), for ])
+    min_t = min(min_t)
+    max_t = max(max_t)
+    ax.set_xlim([0, max_t])
+    ax.axvline(min_t, linestyle="dashed", color="gray", linewidth=1, alpha=0.5)
+
+    # Get tick sizes
+    ax.tick_params(axis="both", which="major", labelsize=TICK_FONTSIZE)
+    ax.tick_params(axis="both", which="minor", labelsize=TICK_FONTSIZE)
+
+    # Set the alignment for outer ticklabels
+    if fix_ticklabels:
+        ticklabels = ax.get_xticklabels()
+        if len(ticklabels) > 0:
+            ticklabels[0].set_ha("left")
+            ticklabels[-1].set_ha("right")
+
+    ax.yaxis.set_major_formatter(
+        matplotlib.ticker.StrMethodFormatter("{x:>4.1f}")
+    )
         
 
 
@@ -286,43 +335,59 @@ def make_conv_plots(
     TICK_FONTSIZE=16,
     savefig=False,
 ):
+    # For each problem (problemd=x != problemd=y unless x == y)
     for problem_name, problem_params in problems:
+        # Get unique problem name
         pn = problem_name
         if "d" in problem_params:
             pn = f"{pn:s}{problem_params['d']:d}"
 
+        # Instantiate the problem
         f_class = getattr(test_problems, problem_name)
         f = f_class(**problem_params)
 
+        # Determine start and end points of the data
         start = 2 * f.dim - 1
         end = budget
 
-        x = np.arange(start + 1, end + 1)
-
+        # Get number of different worker configurations
         n = len(workers)
 
+        # Setup plot axis
         fig, ax = plt.subplots(1, n, figsize=(8, 2), sharey=True, dpi=120)
+
+        # For each worker configuration
         for i in range(n):
+
+            # Get how many workers are in this configuration
             n_workers = workers[i]
+
+            # Get axis handle
             a = ax[i]
 
+            # Initialise data lists
             yvals = []
             xvals = []
 
+            # For each method
             for method_name in method_names:
+                # Get regret information
                 Y = D[time_func][n_workers][pn][method_name]['y'][:, start:end]
                 Y = np.log(Y)
 
+                # Get time information
                 T = D[time_func][n_workers][pn][method_name]['t'][:, start:end]
 
+                # Record extracted information
                 yvals.append(Y)
                 xvals.append(T)
 
+            # Set plot title and axis labels
             title = f"{pn:s}, q={n_workers:d}"
-
             ylabel = r"$\log(R_t)$" if i == 0 else None
-            xlabel = "$t$"
+            xlabel = "$t(s)$"
 
+            # Plot this method's "regret vs wall-clock time" plot
             time_plot(
                 a,
                 yvals,
@@ -335,20 +400,22 @@ def make_conv_plots(
                 TITLE_FONTSIZE,
                 TICK_FONTSIZE,
                 use_fill_between=True,
-                fix_ticklabels=True,
+                fix_ticklabels=False,
             )
 
+            # Ensure labels are all in the same place
             a.get_xaxis().set_label_coords(0.5, -0.15)
-            # ensure labels are all in the same place!
             a.get_yaxis().set_label_coords(-0.22, 0.5)
 
             if i > 0:
                 a.yaxis.set_ticks_position("none")
 
+        # Spacing adjustments
         plt.subplots_adjust(
             left=0, right=1, bottom=0, top=1, wspace=0.03, hspace=0
         )
 
+        # If we want to save the figure, save the figure
         if savefig:
             fname = f"{pn}.pdf"
             if fname_prefix is not None:
@@ -356,6 +423,7 @@ def make_conv_plots(
 
             plt.savefig(fname, bbox_inches="tight")
 
+        # Display plot
         plt.show()
 
 
