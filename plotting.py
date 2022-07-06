@@ -1,15 +1,17 @@
+from crypt import methods
 import os
 import tqdm
 import torch
 import tqdm.auto
 import matplotlib
 import numpy as np
+import pandas as pd
 
 from matplotlib import pyplot as plt
 from scipy.stats import median_abs_deviation, wilcoxon
 from statsmodels.stats.multitest import multipletests
 
-from . import test_problems, util
+from aegis import test_problems, util
 
 
 def read_in_results(
@@ -46,6 +48,7 @@ def read_in_results(
 
                     for method_name in method_names:
                         res = np.zeros((n_runs, budget))
+                        times = np.zeros((n_runs, budget))
                         acq_params = {}
 
                         if "-" in method_name:
@@ -92,7 +95,8 @@ def read_in_results(
                                 time = data["time"].numpy().ravel()
                                 n = Ytr.size
 
-                                res[i, :n] = {"t": time, "y": Ytr}
+                                res[i, :n] = Ytr
+                                times[i, :n] = time
 
                                 if n != budget:
                                     print("Not full:", fn, Ytr.shape)
@@ -111,7 +115,7 @@ def read_in_results(
                         res = np.abs(res - f.yopt.ravel()[0])
                         res = np.minimum.accumulate(res, axis=1)  # type: ignore
 
-                        D[time_func][n_workers][pn][method_name] = res
+                        D[time_func][n_workers][pn][method_name] = {'y': res, 't': times}
 
     return D
 
@@ -174,6 +178,99 @@ def results_plot_maker(
         matplotlib.ticker.StrMethodFormatter("{x:>4.1f}")
     )
 
+def time_plot(
+    ax,
+    yvals,
+    xvals,
+    xlabel,
+    ylabel,
+    title,
+    colors,
+    LABEL_FONTSIZE,
+    TITLE_FONTSIZE,
+    TICK_FONTSIZE,
+    use_fill_between=True,
+    fix_ticklabels=False,
+    ):
+
+    # set the labelling
+    ax.set_xlabel(xlabel, fontsize=LABEL_FONTSIZE)
+    ax.set_ylabel(ylabel, fontsize=LABEL_FONTSIZE)
+    ax.set_title(title, fontsize=TITLE_FONTSIZE)
+
+    yvals = np.array(yvals)
+    xvals = np.array(xvals)
+
+    no_methods, no_runs, budget = yvals.shape
+
+    assert (no_methods, no_runs, budget) == xvals.shape
+
+    # get earliest time
+
+    for method in range(no_methods):
+        out_times = []
+        Q1 = []
+        Q2 = []
+        Q3 = []
+        runs = []
+        times = []
+        regrets = []
+        for run in range(no_runs):
+            for k in range(budget):
+                runs.append(run)
+                times.append(xvals[method][run,k])
+                regrets.append(yvals[method][run,k])
+
+        # Data processing
+        runs = np.array(runs)
+        times = np.array(times)
+        regrets = np.array(regrets)
+        for k in range(len(times)):
+            # For each row
+            run = runs[k]
+            time = times[k]
+            regret = [regrets[k]]
+            for j in [_j for _j in range(no_runs) if _j != run]:
+                tmp_regret = regrets[np.logical_and(runs == j, times < time)]
+                if any(tmp_regret):
+                    regret.append(min(tmp_regret))
+            out_times.append(time)
+            Q1.append(np.quantile(regret, .25))
+            Q2.append(np.quantile(regret, .50))
+            Q3.append(np.quantile(regret, .75))
+        
+        out_times = np.array(out_times)
+        Q1 = np.array(Q1)
+        Q2 = np.array(Q2)
+        Q3 = np.array(Q3)
+
+        sort_indices = np.argsort(out_times)
+
+        out_times = out_times[sort_indices]
+        Q1 = Q1[sort_indices]
+        Q2 = Q2[sort_indices]
+        Q3 = Q3[sort_indices]
+
+        skip = 5
+        out_times = out_times[skip:]
+        Q1 = Q1[skip:]
+        Q2 = Q2[skip:]
+        Q3 = Q3[skip:]
+        
+        color = colors[method]
+
+        if use_fill_between:
+            ax.fill_between(out_times, Q1, Q3, color=color, alpha=0.15)
+
+        ax.plot(out_times, Q2, color=color)
+        ax.plot(out_times, Q1, "--", color=color, alpha=0.15)
+        ax.plot(out_times, Q3, "--", color=color, alpha=0.15)
+
+    
+    # Set xlim
+    #min_t = np.min([np.min(method_df['time']), for ])
+        
+
 
 def make_conv_plots(
     D,
@@ -226,7 +323,7 @@ def make_conv_plots(
             ylabel = r"$\log(R_t)$" if i == 0 else None
             xlabel = "$t$"
 
-            results_plot_maker(
+            time_plot(
                 a,
                 yvals,
                 xvals,

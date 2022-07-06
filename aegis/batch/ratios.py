@@ -43,7 +43,7 @@ class UCB(AcqBaseBatchBO):
         under_evaluation,
         n_opt_samples,
         n_opt_bfgs,
-        beta = 0.2,
+        beta = 2,
     ):
 
         acq_name = "UCB"
@@ -110,10 +110,12 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
     def forward(self, X: Tensor) -> Tensor:
         ei = self._ei(X)
-        return ei / self.time_model(X).mean
+        et_posterior = self.time_model.posterior(
+            X=X, posterior_transform=self.posterior_transform
+        )
 
-    def __call__(self, X: Tensor) -> Tensor:
-        return self.forward(X)
+        et = et_posterior.mean
+        return ei / et
 
 
 class EITimeRatio(AcqBaseBatchBO):
@@ -159,6 +161,27 @@ class EITimeRatio(AcqBaseBatchBO):
         self.ue = under_evaluation
         self.time_model = time_model
         self.updated = True
+
+    def _get_next(self):
+        # perform Boltzmann sampling with n_opt_samples samples and
+        # optimise the best n_opt_bfgs of these with l-bfgs-b
+
+        n_samples = self.n_opt_samples / 2
+
+        # try a few times just in case we get unlucky and all our samples
+        # are in flat regions of space (unlikely but can happen with EI)
+        MAX_ATTEMPTS = 5
+
+        for attempts in range(MAX_ATTEMPTS):
+            n_samples *= 2
+            train_xnew, acq_f = botorch.optim.optimize_acqf(
+                acq_function=self.acq,
+                q=1,
+                bounds=self.problem_bounds,
+                num_restarts=self.n_opt_bfgs,
+                raw_samples=self.n_opt_samples,
+            )
+            return train_xnew
 
 class UCBTimeRatio():
     pass
