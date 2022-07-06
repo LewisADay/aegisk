@@ -120,64 +120,6 @@ def read_in_results(
     return D
 
 
-def results_plot_maker(
-    ax,
-    yvals,
-    xvals,
-    xlabel,
-    ylabel,
-    title,
-    colors,
-    LABEL_FONTSIZE,
-    TITLE_FONTSIZE,
-    TICK_FONTSIZE,
-    use_fill_between=True,
-    fix_ticklabels=False,
-):
-    # here we assume we're plotting to a matplotlib axis object
-    # and yvals is a LIST of arrays of size (n_runs, iterations),
-    # where each can be different sized
-    # and if xvals is given then len(xvals) == len(yvals)
-
-    # set the labelling
-    ax.set_xlabel(xlabel, fontsize=LABEL_FONTSIZE)
-    ax.set_ylabel(ylabel, fontsize=LABEL_FONTSIZE)
-    ax.set_title(title, fontsize=TITLE_FONTSIZE)
-
-    for color, x, Y in zip(colors, xvals, yvals):
-        bot, mid, top = [
-            _.ravel() for _ in np.percentile(Y, [25, 50, 75], axis=0)
-        ]
-
-        if use_fill_between:
-            ax.fill_between(x, bot.flat, top.flat, color=color, alpha=0.15)
-
-        ax.plot(x, mid, color=color)
-        ax.plot(x, bot, "--", color=color, alpha=0.15)
-        ax.plot(x, top, "--", color=color, alpha=0.15)
-
-    # set the xlim
-    min_x = np.min([np.min(x) for x in xvals])
-    max_x = np.max([np.max(x) for x in xvals])
-    ax.set_xlim([0, max_x])
-
-    ax.axvline(min_x, linestyle="dashed", color="gray", linewidth=1, alpha=0.5)
-
-    ax.tick_params(axis="both", which="major", labelsize=TICK_FONTSIZE)
-    ax.tick_params(axis="both", which="minor", labelsize=TICK_FONTSIZE)
-
-    # set the alignment for outer ticklabels
-    ax.set_xticks([0, 50, 100, 150, 200])
-    if fix_ticklabels:
-        ticklabels = ax.get_xticklabels()
-        if len(ticklabels) > 0:
-            ticklabels[0].set_ha("left")
-            ticklabels[-1].set_ha("right")
-
-    ax.yaxis.set_major_formatter(
-        matplotlib.ticker.StrMethodFormatter("{x:>4.1f}")
-    )
-
 def time_plot(
     ax,
     yvals,
