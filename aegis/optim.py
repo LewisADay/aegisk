@@ -333,6 +333,9 @@ class AsyncBO:
 
         return resd
 
+    def get_models(self):
+        return self.model
+
 class AsyncTimeAcqBO:
     def __init__(
         self,
@@ -568,3 +571,6 @@ class AsyncTimeAcqBO:
         }
 
         return resd
+
+    def get_models(self):
+        return self.model, self.time_model
