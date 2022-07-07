@@ -68,34 +68,20 @@ def perform_optimisation(
     acq_class = getattr(batch, acq_name)
 
     # run the BO
-    if time_acq:
-        asbo = AsyncTimeAcqBO(
-            f,
-            Xtr,
-            Ytr,
-            acq_class,
-            acq_params,
-            budget,
-            n_workers,
-            q=1,
-            time_func=time_func,
-            verbose=True,
-            interface=interface
-        )
-    else:
-        asbo = AsyncBO(
-            f,
-            Xtr,
-            Ytr,
-            acq_class,
-            acq_params,
-            budget,
-            n_workers,
-            q=1,
-            time_func=time_func,
-            verbose=True,
-            interface=interface
-        )
+    asbo = AsyncTimeAcqBO(
+        f,
+        Xtr,
+        Ytr,
+        acq_class,
+        acq_params,
+        budget,
+        n_workers,
+        q=1,
+        time_func=time_func,
+        verbose=True,
+        interface=interface,
+        time_acq=time_acq
+    )
 
     # useful stuff to keep a record of
     save_dict = {
@@ -349,7 +335,8 @@ class AsyncTimeAcqBO:
         q=1,
         time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job"
+        interface="job",
+        time_acq=True
     ):
         self.f = func
         self.Xtr = Xtr
@@ -362,6 +349,7 @@ class AsyncTimeAcqBO:
         self.output_transform = getattr(transforms, "Transform_Standardize",)
         self.time_func = time_func
         self.verbose = verbose
+        self.time_acq_flag = time_acq
 
         interfaces = {
             "job": executor.SimExecutorJumpToCompletedJob(
@@ -406,14 +394,27 @@ class AsyncTimeAcqBO:
     @property
     def acq(self):
         if self._acq is None:
-            self._acq = self.acq_class(
-                model=self.model,
-                time_model=self.time_model,
-                lb=self.f.lb,
-                ub=self.f.ub,
-                under_evaluation=self.ue.get(),
-                **self.acq_params,
-            )
+            if self.time_acq_flag:
+                self._acq = self.acq_class(
+                    model=self.model,
+                    time_model=self.time_model,
+                    T_data=self.output_transform(self.Ytr),
+                    T_time=self.output_transform(self.time_taken),
+                    lb=self.f.lb,
+                    ub=self.f.ub,
+                    under_evaluation=self.ue.get(),
+                    **self.acq_params,
+                )
+            else:
+                self._acq = self.acq_class(
+                    model=self.model,
+                    T_data=self.output_transform(self.Ytr),
+                    T_time=self.output_transform(self.time_taken),
+                    lb=self.f.lb,
+                    ub=self.f.ub,
+                    under_evaluation=self.ue.get(),
+                    **self.acq_params,
+                )
 
         return self._acq
 
@@ -467,7 +468,10 @@ class AsyncTimeAcqBO:
             return
 
         # update the acquisition function ready for use.
-        self.acq.update(self.model, self.ue.get(), self.time_model)
+        if self.time_acq_flag:
+            self.acq.update(self.model, self.ue.get(), self.time_model)
+        else:
+            self.acq.update(self.model, self.ue.get())
 
         # get locations to evaluate from the acquisition function, create a
         # job, and submit it
@@ -539,21 +543,22 @@ class AsyncTimeAcqBO:
         )
         self.model.eval()
 
-        # Time gp
-        # scale the output
-        Time_out = self.output_transform(self.time_taken)
-        train_time = Time_out.scale_mean(self.time_taken)
+        if self.time_acq_flag:
+            # Time gp
+            # scale the output
+            Time_out = self.output_transform(self.time_taken)
+            train_time = Time_out.scale_mean(self.time_taken)
 
-        # fit time gp
-        self.time_model, self.time_likelihood = gp.create_and_fit_GP(
-            train_x=train_x,
-            train_y=train_time,
-            ls_bounds=self.ls_bounds,
-            out_bounds=self.out_bounds,
-            n_restarts=10,
-            verbose=self.verbose,
-        )
-        self.time_model.eval()
+            # fit time gp
+            self.time_model, self.time_likelihood = gp.create_and_fit_GP(
+                train_x=train_x,
+                train_y=train_time,
+                ls_bounds=self.ls_bounds,
+                out_bounds=self.out_bounds,
+                n_restarts=10,
+                verbose=self.verbose,
+            )
+            self.time_model.eval()
 
         # submit jobs
         self._create_and_submit_jobs()

@@ -41,18 +41,18 @@ class exponential(timefunc):
         return np.random.exponential(scale=self.scale, size=n)
 
 class consttime(timefunc):
-    def __init__(self, a=1):
-        timefunc.__init__(self, "const")
+    def __init__(self, scale=1):
+        timefunc.__init__(self, "consttime")
         
-        self.a = a
+        self.acdseef = 1
         
-    def __call__(self, n=1):
-        return np.ones((len(x),)) * self.a
+    def __call__(self, x, n=1):
+        return (x*101)/(x*100) * self.acdseef
         
     
 class gausstime(timefunc):
-    def __init__(self, prob, scale=None):
-        timefunc.__init__(self, "gauss")
+    def __init__(self, prob, scale=0.5, mean=0.5):
+        timefunc.__init__(self, "gausstime")
         
         self.prob = prob
         
@@ -61,13 +61,18 @@ class gausstime(timefunc):
         
         self.scale = scale
         
+        if mean is None:
+            mean = (self.prob.lb+self.prob.ub)/2
+
+        self.mean = mean
+        
     def __call__(self, x, n=1):
-        return scipy.stats.norm.pdf(x, (self.prob.lb+self.prob.ub)/2, self.scale).flatten() + 1
+        return scipy.stats.norm.pdf(x, self.mean, self.scale).flatten() + 1
     
 class corrtime(timefunc):
     def __init__(self, prob, a=1, name=None):
         if name is None:
-            timefunc.__init__(self, "corr")
+            timefunc.__init__(self, "corrtime")
         else:
             timefunc.__init__(self, name)
         
@@ -76,11 +81,11 @@ class corrtime(timefunc):
         self.yopt = self.prob.yopt
     
     def __call__(self, x, n=1):
-        return (self.prob(x)-self.yopt) * self.a
+        return (self.prob(x)-self.yopt) * self.a + np.abs(self.yopt)
     
 class negcorrtime(corrtime):
     def __init__(self, prob, a=1):
-        corrtime.__init__(self, prob, a, "negcorr")
+        corrtime.__init__(self, prob, a, "negcorrtime")
         
         _x = np.arange(prob.lb, prob.ub, 1e-5)
         self.full_range = prob(_x)

@@ -12,6 +12,7 @@ from scipy.stats import median_abs_deviation, wilcoxon
 from statsmodels.stats.multitest import multipletests
 
 from aegis import test_problems, util
+from aegis.transforms import Transform_Standardize
 
 
 def read_in_results(
@@ -118,6 +119,59 @@ def read_in_results(
                         D[time_func][n_workers][pn][method_name] = {'y': res, 't': times}
 
     return D
+
+
+def gp_plot(ax, model, transform, color=np.array([31, 119, 180])/255, xlim=(0,1)):
+
+    # Ensure model is in evaluation mode
+    model.eval()
+
+    # Generate sample data
+    test_x = torch.as_tensor(np.linspace(xlim[0], xlim[1], 1000).astype(float))
+
+    # Get model predictions
+    preds = model(test_x)
+
+    # Extract and transform outputs
+    T = transform
+    means = T.unscale_mean(preds.mean)
+    var = T.unscale_var(preds.variance)
+    means = torch.asarray(means)
+    var = torch.asarray(var)
+    stddev = np.sqrt(var)
+    top = means + 2*stddev
+    bot = means - 2*stddev
+
+    test_x = torch.asarray(test_x)
+    ax.plot(test_x, means, color=color)
+    ax.fill_between(test_x, top, bot, color=color, alpha=0.15)
+    ax.plot(test_x, top, "--", color=color, alpha=0.15)
+    ax.plot(test_x, bot, "--", color=color, alpha=0.15)
+
+    train_x = model.train_inputs[0].detach().cpu().numpy().ravel().astype(float)
+    train_y = model.train_targets.detach().cpu()
+    train_y = transform.unscale_mean(train_y).numpy().astype(float)
+
+    ax.scatter(train_x, train_y, marker="x", color="black")
+
+def acq_plot(ax, acq_class, color=np.array([227, 119, 194])/255, xlim=(0,1)):
+
+    # Generate sample data
+    test_x = torch.as_tensor(np.linspace(xlim[0], xlim[1], 1000).astype(float))
+
+    acq = acq_class.acq
+
+    with torch.no_grad():
+        preds = acq.forward(test_x.reshape(-1, 1, 1))
+
+    ax.plot(torch.asarray(test_x), torch.asarray(preds), color=color)
+
+def mark_acq_choice_plot(axes, acq, color="red"):
+
+    choice = torch.asarray(acq.get_next())
+
+    for ax in axes:
+        ax.axvline(x=choice, linestyle="--", color=color, alpha=0.8)
 
 
 def time_plot(
@@ -759,7 +813,7 @@ def plot_solo_q(
             ylabel = r"$\log(R_t)$" if i == 0 else None
             xlabel = "$t$"
 
-            results_plot_maker(
+            time_plot(
                 a,
                 yvals,
                 xvals,

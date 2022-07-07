@@ -6,6 +6,7 @@ from torch import Tensor
 from torch.distributions import Normal
 from .acquisitions import AcqBaseBatchBO
 from botorch.utils.transforms import t_batch_mode_transform
+import botorch
 
 class EI(AcqBaseBatchBO):
     def __init__(
@@ -69,9 +70,11 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
         self,
         model,
         time_model,
+        T_data,
+        T_time,
         best_f,
         posterior_transform = None,
-        maximize: bool = True,
+        maximize: bool = False,
         **kwargs,
     ) -> None:
 
@@ -83,54 +86,114 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
         self.maximize = maximize
         self.time_model = time_model
+        self.T_data = T_data
+        self.T_time = T_time
+        self.best_f = best_f
 
-        if not torch.is_tensor(best_f):
-            best_f = torch.tensor(best_f)
-
-        self.register_buffer("best_f", best_f)
-
-    def _ei(self, X: Tensor) -> Tensor:
-        self.best_f = self.best_f.to(X)
-        posterior = self.model.posterior(
-            X=X, posterior_transform=self.posterior_transform
-        )
-        mean = posterior.mean
-        # deal with batch evaluation and broadcasting
-        view_shape = mean.shape[:-2] if mean.shape[-2] == 1 else mean.shape[:-1]
-        mean = mean.view(view_shape)
-        sigma = posterior.variance.clamp_min(1e-9).sqrt().view(view_shape)
-        u = (mean - self.best_f.expand_as(mean)) / sigma
-        if not self.maximize:
-            u = -u
-        normal = Normal(torch.zeros_like(u), torch.ones_like(u))
-        ucdf = normal.cdf(u)
-        updf = torch.exp(normal.log_prob(u))
-        ei = sigma * (updf + u * ucdf)
-        return ei
-
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
-        ei = self._ei(X)
-        et_posterior = self.time_model.posterior(
-            X=X, posterior_transform=self.posterior_transform
+        ei = botorch.acquisition.ExpectedImprovement(
+            self.model,
+            best_f = self.best_f,
+            maximize = self.maximize
         )
 
-        et = et_posterior.mean
-        return ei / et
+        ei = ei.forward(X)
 
+        et = self.time_model(X)
+        et = self.T_time.unscale_mean(et.mean.ravel())
 
-class EITimeRatio(AcqBaseBatchBO):
+        return torch.div(ei, et)
+
+class UCBTimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(
         self,
         model,
         time_model,
+        T_data,
+        T_time,
+        beta,
+        posterior_transform = None,
+        maximize: bool = False,
+        **kwargs,
+    ) -> None:
+
+        super().__init__(
+            model=model,
+            posterior_transform=posterior_transform,
+            **kwargs
+            )
+
+        self.maximize = maximize
+        self.time_model = time_model
+        self.T_data = T_data
+        self.T_time = T_time
+        self.beta = beta
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+        ucb = botorch.acquisition.UpperConfidenceBound(
+            self.model,
+            beta= self.beta,
+            maximize = self.maximize
+        )
+
+        ucb = ucb.forward(X)
+
+        et = self.time_model(X)
+        et = self.T_time.unscale_mean(et.mean.ravel())
+
+        return torch.div(ucb, et)
+
+
+class FuncTimeRatio():
+    def __init__(
+        self,
+        model,
+        time_model,
+        T_data,
+        T_time,
+        posterior_transform = None,
+        maximize: bool = False,
+        **kwargs,
+    ) -> None:
+
+        super().__init__(
+            model=model,
+            posterior_transform=posterior_transform,
+            **kwargs
+            )
+
+        self.maximize = maximize
+        self.time_model = time_model
+        self.T_data = T_data
+        self.T_time = T_time
+
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+        ev = self.model(X)
+        ev = self.T_data.unscale_mean(ev.mean.ravel())
+
+        et = self.time_model(X)
+        et = self.T_time.unscale_mean(et.mean.ravel())
+
+        return torch.div(-ev, et)
+
+class TimeAcqFunc(AcqBaseBatchBO):
+    def __init__(
+        self,
+        model,
+        time_model,
+        T_data,
+        T_time,
         lb,
         ub,
         under_evaluation,
+        acq_name,
         n_opt_samples,
         n_opt_bfgs,
     ):
-
-        acq_name = "EITimeRatio"
 
         super().__init__(
             model,
@@ -143,14 +206,8 @@ class EITimeRatio(AcqBaseBatchBO):
         )
 
         self.time_model = time_model
-
-    @property
-    def acq(self):
-        return EITimeAcq(
-            model = self.model,
-            time_model=self.time_model,
-            best_f = self.model.train_targets.min(),
-        )
+        self.T_data = T_data
+        self.T_time = T_time
 
     def update(self, model, under_evaluation, time_model):
         """
@@ -162,29 +219,119 @@ class EITimeRatio(AcqBaseBatchBO):
         self.time_model = time_model
         self.updated = True
 
-    def _get_next(self):
-        # perform Boltzmann sampling with n_opt_samples samples and
-        # optimise the best n_opt_bfgs of these with l-bfgs-b
 
-        n_samples = self.n_opt_samples / 2
+class EITimeRatio(TimeAcqFunc):
+    def __init__(
+        self,
+        model,
+        time_model,
+        T_data,
+        T_time,
+        lb,
+        ub,
+        under_evaluation,
+        n_opt_samples,
+        n_opt_bfgs,
+    ):
 
-        # try a few times just in case we get unlucky and all our samples
-        # are in flat regions of space (unlikely but can happen with EI)
-        MAX_ATTEMPTS = 5
+        acq_name = "EITimeRatio"
 
-        for attempts in range(MAX_ATTEMPTS):
-            n_samples *= 2
-            train_xnew, acq_f = botorch.optim.optimize_acqf(
-                acq_function=self.acq,
-                q=1,
-                bounds=self.problem_bounds,
-                num_restarts=self.n_opt_bfgs,
-                raw_samples=self.n_opt_samples,
-            )
-            return train_xnew
+        super().__init__(
+            model,
+            time_model,
+            T_data,
+            T_time,
+            lb,
+            ub,
+            under_evaluation,
+            acq_name,
+            n_opt_samples,
+            n_opt_bfgs,
+        )
 
-class UCBTimeRatio():
-    pass
+    @property
+    def acq(self):
+        return EITimeAcq(
+            model = self.model,
+            time_model=self.time_model,
+            T_data = self.T_data,
+            T_time = self.T_time,
+            best_f = self.model.train_targets.min(),
+        )
 
-class FuncTimeRatio():
-    pass
+class UCBTimeRatio(TimeAcqFunc):
+    def __init__(
+        self,
+        model,
+        time_model,
+        T_data,
+        T_time,
+        lb,
+        ub,
+        under_evaluation,
+        n_opt_samples,
+        n_opt_bfgs,
+    ):
+
+        acq_name = "UCBTimeRatio"
+
+        super().__init__(
+            model,
+            time_model,
+            T_data,
+            T_time,
+            lb,
+            ub,
+            under_evaluation,
+            acq_name,
+            n_opt_samples,
+            n_opt_bfgs,
+        )
+
+    @property
+    def acq(self):
+        return UCBTimeAcq(
+            model = self.model,
+            time_model=self.time_model,
+            T_data = self.T_data,
+            T_time = self.T_time,
+            beta = 2,
+        )
+
+class FuncTimeRatio(TimeAcqFunc):
+    def __init__(
+        self,
+        model,
+        time_model,
+        T_data,
+        T_time,
+        lb,
+        ub,
+        under_evaluation,
+        n_opt_samples,
+        n_opt_bfgs,
+    ):
+
+        acq_name = "FuncTimeRatio"
+
+        super().__init__(
+            model,
+            time_model,
+            T_data,
+            T_time,
+            lb,
+            ub,
+            under_evaluation,
+            acq_name,
+            n_opt_samples,
+            n_opt_bfgs,
+        )
+
+    @property
+    def acq(self):
+        return FuncTimeRatio(
+            model = self.model,
+            time_model=self.time_model,
+            T_data = self.T_data,
+            T_time = self.T_time,
+        )
