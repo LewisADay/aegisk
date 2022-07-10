@@ -509,6 +509,9 @@ class SimExecutorJumpToCompletedJob(SimExecutor):
         self._running_jobs_timings -= increment
         self._update_internal_state()
 
+    def kill_job(self, point):
+        pass
+
 
 class SimExecutorJumpToCompletedJobProblemDependant(SimExecutorJumpToCompletedJob):
     def __init__(

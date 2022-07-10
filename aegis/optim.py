@@ -336,7 +336,8 @@ class AsyncTimeAcqBO:
         time_func=time_dists.halfnorm(),
         verbose=False,
         interface="job",
-        time_acq=True
+        time_acq=True,
+        selective_killing=False
     ):
         self.f = func
         self.Xtr = Xtr
@@ -350,6 +351,7 @@ class AsyncTimeAcqBO:
         self.time_func = time_func
         self.verbose = verbose
         self.time_acq_flag = time_acq
+        self.selective_killing_flag = selective_killing
 
         interfaces = {
             "job": executor.SimExecutorJumpToCompletedJob(
@@ -491,6 +493,23 @@ class AsyncTimeAcqBO:
 
         self.n_submitted += n_to_submit
 
+    def _check_and_kill_jobs(self):
+
+        # Get list of evaluations we wish to kill
+        to_kill = self.acq.get_kill()
+
+        # If we wish to kill of evaluations
+        if to_kill is not None:
+            # For each evalauation we wish to kill
+            for x in to_kill:
+                # Kill that evaluation and remove it from
+                # UnderEval
+                self.interface.kill_job(x)
+                self.ue.remove(x)
+
+        return to_kill is not None
+
+
     def step(self):
         if self.verbose:
             print(
@@ -563,6 +582,19 @@ class AsyncTimeAcqBO:
         # submit jobs
         self._create_and_submit_jobs()
 
+        # If we are using a selective killing method
+        if self.selective_killing_flag:
+
+            # Check if we wish to kill any evaluations off
+            # and kill those evaluations returns true if one 
+            # or more evaluations were killed off
+            killed = self._check_and_kill_jobs()
+
+            # If we killed any evaluations off, reasign
+            # those workers
+            if killed:
+                self._create_and_submit_jobs()
+
         if self.verbose:
             print("------------------------------")
             print()
@@ -578,4 +610,7 @@ class AsyncTimeAcqBO:
         return resd
 
     def get_models(self):
-        return self.model, self.time_model
+        resd = {"ProblemModel": self.model}
+        if self.time_acq_flag:
+            resd["TimeModel": self.time_model]
+        return resd
