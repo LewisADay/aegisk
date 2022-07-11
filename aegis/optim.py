@@ -410,8 +410,6 @@ class AsyncTimeAcqBO:
             else:
                 self._acq = self.acq_class(
                     model=self.model,
-                    T_data=self.output_transform(self.Ytr),
-                    T_time=self.output_transform(self.time_taken),
                     lb=self.f.lb,
                     ub=self.f.ub,
                     under_evaluation=self.ue.get(),
