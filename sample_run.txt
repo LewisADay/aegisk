@@ -1,0 +1,64 @@
+problems = [
+    ("Forrester", {})
+]
+
+methods = {
+    "EI": "EI",
+}
+
+time_acqs = {
+    "EI": False,
+    "UCB": False,
+    "EITimeRatio": True
+}
+
+acq_params = {
+    "n_opt_samples": 1 * 1000,
+    "n_opt_bfgs": 10
+}
+
+time_functions = [
+    ("corrtime", "job-dependant")
+]
+
+max_steps = 50
+num_runs = 21
+workers = [1]
+
+
+import botorch
+import torch
+import gpytorch
+import numpy as np
+from aegis.gen_training_data import generate_training_data_LHS
+from aegis.optim import perform_optimisation
+
+for problem_name, problem_params in problems:
+
+    # Initial point generation
+    generate_training_data_LHS(problem_name, n_exp_start=1, n_exp_end=num_runs)
+
+    for time_name, interface in time_functions:
+
+        for n_workers in workers:
+
+            for acq_name in methods:
+
+                time_acq = time_acqs[acq_name]
+
+                for run in range(num_runs):
+
+                    perform_optimisation(
+                        problem_name=problem_name,
+                        problem_params=problem_params,
+                        run_no=run+1,
+                        budget=max_steps,
+                        n_workers=n_workers,
+                        acq_name=acq_name,
+                        acq_params=acq_params,
+                        time_name=time_name,
+                        save_every=10,
+                        repeat_no=None,
+                        interface='job-dependant',
+                        time_acq=time_acq
+                    )
