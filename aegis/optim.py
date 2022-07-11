@@ -612,5 +612,5 @@ class AsyncTimeAcqBO:
     def get_models(self):
         resd = {"ProblemModel": self.model}
         if self.time_acq_flag:
-            resd["TimeModel": self.time_model]
+            resd["TimeModel"] = self.time_model
         return resd
