@@ -1,21 +1,16 @@
+Current goals:
 
-Acq Funcs:
-- EI
-- UCB
-- Greedy Ratio
-- Greedy EI/t Ratio
-- Greedy UCB/t Ratio
+Refactor AyncBO to series of classes, for neatness
 
+Setup selective killing environment
+(When an evaluation finishes, generate candidate location but do not immediately adopt this candidate, first see if any ongoing solution should be killed in favour of this new candidate, if so, kill and adopt the candidate, then seek new candidate (by means of a penalised acquisition function) and repeat until no evaluation should be killed off then adopt the candidate on the originally freed worker.)
 
-For scalar / Gaussian we use inverse (reciprocal) Gaussian distribution
+Make selective killing methods as botorch acquisition functions solely for the purposes of optimisation later, not to actually use them as acquisition functions
 
-scalar * inverse Gaussian form determined in tests.ipynb
+Selective killing methods to consider:
 
------
+Compare EI/ET of candidate to EI/(ET-(t_current-t_start)) of ongoing, if candidate is greater than the ongoing, by some margin delta, adopt the candidate.
 
-Reverted to old string based class fetching
-need to integrate changes into getattr fetchable mannor, mainly by making all edits to existing files in appropriate places,
-or by including in relevant __init__.py files so to be captured by the module wide addressing
+Get EI/ET, optimise, then generate the two reciprocal distributions of EI/ET, or indeed any given value function, at the optimal point from the ratio of the means, and find the probability of the candidate having a greater value than the ongoing, if that probability exceeds some threshold, say, 0.8, we adopt the candidate.
 
-Need to rewrite ipynb's to reflect these changes, mainly through correctly addressing the time distributions for now
-and making the necessary edits to the appropriate function calls, moving away from the class passthrough structure
+Also we should start calling time, cost, for generality.
