@@ -16,7 +16,7 @@ def perform_optimisation(
     save_every=10,
     repeat_no=None,
     interface='job',
-    time_acq=False,
+    bo_name='AsyncBO',
 ):
 
     # set up the saving paths
@@ -67,8 +67,11 @@ def perform_optimisation(
     # get the acquisition function class
     acq_class = getattr(batch, acq_name)
 
+    # get the BO class
+    asbo = eval(bo_name)
+
     # run the BO
-    asbo = AsyncTimeAcqBO(
+    asbo = asbo(
         f,
         Xtr,
         Ytr,
@@ -79,8 +82,7 @@ def perform_optimisation(
         q=1,
         time_func=time_func,
         verbose=True,
-        interface=interface,
-        time_acq=time_acq
+        interface=interface
     )
 
     # useful stuff to keep a record of
@@ -372,10 +374,10 @@ class AsyncTimeAcqBO(AsyncBO):
             acq_params,
             budget,
             n_workers,
-            q=1,
-            time_func=time_dists.halfnorm(),
-            verbose=False,
-            interface="job"
+            q=q,
+            time_func=time_func,
+            verbose=verbose,
+            interface=interface
         )
 
         # sample time function for time of initialised points Xtr
@@ -444,3 +446,59 @@ class AsyncTimeAcqBO(AsyncBO):
         if self.time_acq_flag:
             resd["TimeModel"] = self.time_model
         return resd
+
+
+class AsyncSKBO(AsyncTimeAcqBO):
+    def __init__(
+        self,
+        func,
+        Xtr,
+        Ytr,
+        acq_class,
+        acq_params,
+        budget,
+        n_workers,
+        q=1,
+        time_func=time_dists.halfnorm(),
+        verbose=False,
+        interface="job"
+    ):
+        AsyncTimeAcqBO.__init__(
+            self,
+            func,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            q=q,
+            time_func=time_func,
+            verbose=verbose,
+            interface=interface
+        )
+
+    def _kill_and_submit_jobs(self):
+        pass
+
+    def step(self):
+
+        # Setup the step
+        end_step = self._setup_step()
+
+        # If we need to end this step, do
+        if end_step:
+            return
+
+        # Train model gp
+        self._setup_model_gp()
+
+        # Train cost gp
+        self._setup_cost_gp()
+
+        # submit jobs
+        self._kill_and_submit_jobs()
+
+        if self.verbose:
+            print("------------------------------")
+            print()
