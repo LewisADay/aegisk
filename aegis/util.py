@@ -139,6 +139,7 @@ def generate_save_filename(
     n_workers,
     acq_name,
     run_no,
+    bo_name,
     problem_params={},
     acq_params={},
     repeat_no=None,
@@ -167,8 +168,12 @@ def generate_save_filename(
     if "BatchBO" in acq_name:
         acq_name = f'{acq_name:s}-{acq_params["acq_name"]:s}'
 
+    ######
+    print(bo_name)
+    ######
+
     fname_components = [
-        "async",
+        f"_{bo_name:s}",
         f"_{time_name:s}",
         f"_{budget:d}",
         f"_workers={n_workers:d}",

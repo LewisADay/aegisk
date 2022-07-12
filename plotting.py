@@ -16,7 +16,7 @@ from aegis.transforms import Transform_Standardize
 
 
 def read_in_results(
-    time_functions, workers, problems, method_names, n_runs, budget
+    time_functions, workers, problems, method_names, n_runs, budget, bo_names,
 ):
     # D[time_func][workers][problem][method]
     D = {}
@@ -48,8 +48,12 @@ def read_in_results(
                     f = f_class(**problem_params)
 
                     for method_name in method_names:
+
+                        bo_name = bo_names[method_name]
+                        
                         res = np.zeros((n_runs, budget))
                         times = np.zeros((n_runs, budget))
+                        costs = np.zeros((n_runs, budget))
                         acq_params = {}
 
                         if "-" in method_name:
@@ -85,6 +89,7 @@ def read_in_results(
                                 n_workers,
                                 mn,
                                 run_no,
+                                bo_name,
                                 problem_params,
                                 acq_params,
                             )
@@ -94,10 +99,12 @@ def read_in_results(
                                 data = torch.load(fn)
                                 Ytr = data["Ytr"].numpy().ravel()
                                 time = data["time"].numpy().ravel()
+                                cost = data["cost"].numpy().ravel()
                                 n = Ytr.size
 
                                 res[i, :n] = Ytr
                                 times[i, :n] = time
+                                costs[i, :n] = cost
 
                                 if n != budget:
                                     print("Not full:", fn, Ytr.shape)
@@ -116,7 +123,7 @@ def read_in_results(
                         res = np.abs(res - f.yopt.ravel()[0])
                         res = np.minimum.accumulate(res, axis=1)  # type: ignore
 
-                        D[time_func][n_workers][pn][method_name] = {'y': res, 't': times}
+                        D[time_func][n_workers][pn][method_name] = {'y': res, 't': times, 'c': costs}
 
     return D
 
@@ -171,7 +178,7 @@ def mark_acq_choice_plot(axes, acq, color="red"):
     choice = torch.asarray(acq.get_next())
 
     for ax in axes:
-        ax.axvline(x=choice, linestyle="--", color=color, alpha=0.8)
+        ax.axvline(x=np.asarray(choice), linestyle="--", color=color, alpha=0.8)
 
 
 def time_plot(

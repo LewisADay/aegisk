@@ -27,6 +27,7 @@ def perform_optimisation(
         n_workers,
         acq_name,
         run_no,
+        bo_name,
         problem_params,
         acq_params,
         repeat_no=repeat_no,
@@ -347,9 +348,10 @@ class AsyncBO:
         return resd
 
     def get_models(self):
-        return self.model
+        resd = {"ProblemModel": self.model}
+        return resd
 
-class AsyncTimeAcqBO(AsyncBO):
+class AsyncCostAcqBO(AsyncBO):
     def __init__(
         self,
         func,
@@ -380,21 +382,23 @@ class AsyncTimeAcqBO(AsyncBO):
             interface=interface
         )
 
+        self.cost = torch.zeros_like(Ytr, dtype=self.dtype)
+
         # sample time function for time of initialised points Xtr
         for i in range(self.time_taken.shape[0]):
             if interface == 'job':
-                self.time_taken[i] = torch.as_tensor(time_func())
+                self.cost[i] = torch.as_tensor(time_func())
             elif interface == 'job-dependant':
-                self.time_taken[i] = torch.as_tensor(time_func(Xtr[i]))
+                self.cost[i] = torch.as_tensor(time_func(Xtr[i]))
 
     @property
     def acq(self):
         if self._acq is None:
             self._acq = self.acq_class(
                 model=self.model,
-                time_model=self.time_model,
+                cost_model=self.cost_model,
                 T_data=self.output_transform(self.Ytr),
-                T_time=self.output_transform(self.time_taken),
+                T_cost=self.output_transform(self.cost),
                 lb=self.f.lb,
                 ub=self.f.ub,
                 under_evaluation=self.ue.get(),
@@ -404,10 +408,53 @@ class AsyncTimeAcqBO(AsyncBO):
         return self._acq
 
     def _update_acq(self):
-        self.acq.update(self.model, self.ue.get(), self.time_model)
+        self.acq.update(self.model, self.ue.get(), self.cost_model)
+
+    def _finished_job_cost(self, job):
+        return torch.as_tensor(job["t"], dtype=self.dtype)
+
+    def _process_completed_jobs(self):
+        # get the completed jobs
+        completed_jobs = self.interface.get_completed_jobs()
+        n = len(completed_jobs)
+
+        # storage, so we only cat once
+        _Xtr = torch.zeros((n, self.f.dim), dtype=self.dtype)
+        _Ytr = torch.zeros(n, dtype=self.dtype)
+        _time_taken = torch.zeros(n, dtype=self.dtype)
+        _time = torch.zeros(n, dtype=self.dtype)
+        _cost = torch.zeros(n, dtype=self.dtype)
+
+        # add the results to the training data
+        for i, job in enumerate(completed_jobs):
+            _Xtr[i] = job["x"]
+            _Ytr[i] = job["y"]
+            _time_taken[i] = torch.as_tensor(job["t"], dtype=self.dtype)
+            _time[i] = self.interface.status["t"]
+            _cost[i] = self._finished_job_cost(job)
+
+            # remove from under evaluation
+            self.ue.remove(_Xtr[i])
+
+            if self.verbose:
+                print(
+                    f"Completed -> f(x): {_Ytr[i]:0.3f}",
+                    f"time taken: {_time_taken[i]:0.3f}",
+                )
+
+        # store the results
+        self.Xtr = torch.cat((self.Xtr, _Xtr))
+        self.Ytr = torch.cat((self.Ytr, _Ytr))
+        self.time_taken = torch.cat((self.time_taken, _time_taken))
+        self.time = torch.cat((self.time, _time))
+        self.cost = torch.cat((self.cost, _cost))
+
+        # add to the completed jobs counter
+        self.n_completed += len(completed_jobs)
 
     def _setup_cost_gp(self):
-        self.cost_model, self.cost_likelihood = self._setup_gp(self.Xtr, self.time_taken)
+        self.cost_model, self.cost_likelihood = self._setup_gp(self.Xtr, self.cost)
+        self.cost_model.eval()
 
     def step(self):
 
@@ -437,18 +484,20 @@ class AsyncTimeAcqBO(AsyncBO):
             "Ytr": self.Ytr,
             "time_taken": self.time_taken,
             "time": self.time,
+            "cost": self.cost,
         }
 
         return resd
 
     def get_models(self):
-        resd = {"ProblemModel": self.model}
-        if self.time_acq_flag:
-            resd["TimeModel"] = self.time_model
+        resd = {
+            "ProblemModel": self.model,
+            "CostModel": self.cost_model,
+            }
         return resd
 
 
-class AsyncSKBO(AsyncTimeAcqBO):
+class AsyncSKBO(AsyncCostAcqBO):
     def __init__(
         self,
         func,
@@ -463,7 +512,7 @@ class AsyncSKBO(AsyncTimeAcqBO):
         verbose=False,
         interface="job"
     ):
-        AsyncTimeAcqBO.__init__(
+        AsyncCostAcqBO.__init__(
             self,
             func,
             Xtr,

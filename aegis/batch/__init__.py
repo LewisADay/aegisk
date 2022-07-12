@@ -18,9 +18,9 @@ from .aegis_ablation import (
 from .ratios import (
     EI,
     UCB,
-    EITimeRatio,
-    UCBTimeRatio,
-    FuncTimeRatio,
+    EICostRatio,
+    UCBCostRatio,
+    FuncCostRatio,
 )
 
 __all__ = [
@@ -37,7 +37,7 @@ __all__ = [
     "ablationNoRandom",
     "EI",
     "UCB",
-    "EITimeRatio",
-    "UCBTimeRatio",
-    "FuncTimeRatio",
+    "EICostRatio",
+    "UCBCostRatio",
+    "FuncCostRatio",
 ]

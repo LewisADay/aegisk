@@ -65,13 +65,13 @@ class UCB(AcqBaseBatchBO):
     def acq(self):
         return botorch.acquisition.UpperConfidenceBound(self.model, beta = self.beta, maximize=False)
 
-class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
+class EICostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         best_f,
         posterior_transform = None,
         maximize: bool = False,
@@ -85,9 +85,9 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
             )
 
         self.maximize = maximize
-        self.time_model = time_model
+        self.cost_model = cost_model
         self.T_data = T_data
-        self.T_time = T_time
+        self.T_cost = T_cost
         self.best_f = best_f
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
@@ -100,18 +100,18 @@ class EITimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
         ei = ei.forward(X)
 
-        et = self.time_model(X)
-        et = self.T_time.unscale_mean(et.mean.ravel())
+        et = self.cost_model(X)
+        et = self.T_cost.unscale_mean(et.mean.ravel())
 
         return torch.div(ei, et)
 
-class UCBTimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
+class UCBCostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         beta,
         posterior_transform = None,
         maximize: bool = False,
@@ -125,9 +125,9 @@ class UCBTimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
             )
 
         self.maximize = maximize
-        self.time_model = time_model
+        self.cost_model = cost_model
         self.T_data = T_data
-        self.T_time = T_time
+        self.T_cost = T_cost
         self.beta = beta
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
@@ -140,19 +140,19 @@ class UCBTimeAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
         ucb = ucb.forward(X)
 
-        et = self.time_model(X)
-        et = self.T_time.unscale_mean(et.mean.ravel())
+        et = self.cost_model(X)
+        et = self.T_cost.unscale_mean(et.mean.ravel())
 
         return torch.div(ucb, et)
 
 
-class FuncTimeRatio():
+class FuncCostRatio():
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         posterior_transform = None,
         maximize: bool = False,
         **kwargs,
@@ -165,9 +165,9 @@ class FuncTimeRatio():
             )
 
         self.maximize = maximize
-        self.time_model = time_model
+        self.cost_model = cost_model
         self.T_data = T_data
-        self.T_time = T_time
+        self.T_cost = T_cost
 
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
@@ -175,18 +175,18 @@ class FuncTimeRatio():
         ev = self.model(X)
         ev = self.T_data.unscale_mean(ev.mean.ravel())
 
-        et = self.time_model(X)
-        et = self.T_time.unscale_mean(et.mean.ravel())
+        et = self.cost_model(X)
+        et = self.T_cost.unscale_mean(et.mean.ravel())
 
         return torch.div(-ev, et)
 
-class TimeAcqFunc(AcqBaseBatchBO):
+class CostAcqFunc(AcqBaseBatchBO):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         lb,
         ub,
         under_evaluation,
@@ -205,28 +205,28 @@ class TimeAcqFunc(AcqBaseBatchBO):
             n_opt_bfgs,
         )
 
-        self.time_model = time_model
+        self.cost_model = cost_model
         self.T_data = T_data
-        self.T_time = T_time
+        self.T_cost = T_cost
 
-    def update(self, model, under_evaluation, time_model):
+    def update(self, model, under_evaluation, cost_model):
         """
         Updates the acquisition function with the latest model and locations
         under evaluation.
         """
         self.model = model
         self.ue = under_evaluation
-        self.time_model = time_model
+        self.cost_model = cost_model
         self.updated = True
 
 
-class EITimeRatio(TimeAcqFunc):
+class EICostRatio(CostAcqFunc):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         lb,
         ub,
         under_evaluation,
@@ -234,13 +234,13 @@ class EITimeRatio(TimeAcqFunc):
         n_opt_bfgs,
     ):
 
-        acq_name = "EITimeRatio"
+        acq_name = "EICostRatio"
 
         super().__init__(
             model,
-            time_model,
+            cost_model,
             T_data,
-            T_time,
+            T_cost,
             lb,
             ub,
             under_evaluation,
@@ -251,21 +251,21 @@ class EITimeRatio(TimeAcqFunc):
 
     @property
     def acq(self):
-        return EITimeAcq(
+        return EICostAcq(
             model = self.model,
-            time_model=self.time_model,
+            cost_model=self.cost_model,
             T_data = self.T_data,
-            T_time = self.T_time,
+            T_cost = self.T_cost,
             best_f = self.model.train_targets.min(),
         )
 
-class UCBTimeRatio(TimeAcqFunc):
+class UCBCostRatio(CostAcqFunc):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         lb,
         ub,
         under_evaluation,
@@ -273,13 +273,13 @@ class UCBTimeRatio(TimeAcqFunc):
         n_opt_bfgs,
     ):
 
-        acq_name = "UCBTimeRatio"
+        acq_name = "UCBCostRatio"
 
         super().__init__(
             model,
-            time_model,
+            cost_model,
             T_data,
-            T_time,
+            T_cost,
             lb,
             ub,
             under_evaluation,
@@ -290,21 +290,21 @@ class UCBTimeRatio(TimeAcqFunc):
 
     @property
     def acq(self):
-        return UCBTimeAcq(
+        return UCBCostAcq(
             model = self.model,
-            time_model=self.time_model,
+            cost_model=self.cost_model,
             T_data = self.T_data,
-            T_time = self.T_time,
+            T_cost = self.T_cost,
             beta = 2,
         )
 
-class FuncTimeRatio(TimeAcqFunc):
+class FuncCostRatio(CostAcqFunc):
     def __init__(
         self,
         model,
-        time_model,
+        cost_model,
         T_data,
-        T_time,
+        T_cost,
         lb,
         ub,
         under_evaluation,
@@ -312,13 +312,13 @@ class FuncTimeRatio(TimeAcqFunc):
         n_opt_bfgs,
     ):
 
-        acq_name = "FuncTimeRatio"
+        acq_name = "FuncCostRatio"
 
         super().__init__(
             model,
-            time_model,
+            cost_model,
             T_data,
-            T_time,
+            T_cost,
             lb,
             ub,
             under_evaluation,
@@ -329,9 +329,9 @@ class FuncTimeRatio(TimeAcqFunc):
 
     @property
     def acq(self):
-        return FuncTimeRatio(
+        return FuncCostRatio(
             model = self.model,
-            time_model=self.time_model,
+            cost_model=self.cost_model,
             T_data = self.T_data,
-            T_time = self.T_time,
+            T_cost = self.T_cost,
         )
