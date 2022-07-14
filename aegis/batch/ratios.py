@@ -145,8 +145,7 @@ class UCBCostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
         return torch.div(ucb, et)
 
-
-class FuncCostRatio(botorch.acquisition.AnalyticAcquisitionFunction):
+class FuncCostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(
         self,
         model,
@@ -218,7 +217,6 @@ class CostAcqFunc(AcqBaseBatchBO):
         self.ue = under_evaluation
         self.cost_model = cost_model
         self.updated = True
-
 
 class EICostRatio(CostAcqFunc):
     def __init__(
