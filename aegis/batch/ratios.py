@@ -146,7 +146,7 @@ class UCBCostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
         return torch.div(ucb, et)
 
 
-class FuncCostRatio():
+class FuncCostRatio(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(
         self,
         model,
@@ -253,7 +253,7 @@ class EICostRatio(CostAcqFunc):
     def acq(self):
         return EICostAcq(
             model = self.model,
-            cost_model=self.cost_model,
+            cost_model = self.cost_model,
             T_data = self.T_data,
             T_cost = self.T_cost,
             best_f = self.model.train_targets.min(),
@@ -292,7 +292,7 @@ class UCBCostRatio(CostAcqFunc):
     def acq(self):
         return UCBCostAcq(
             model = self.model,
-            cost_model=self.cost_model,
+            cost_model = self.cost_model,
             T_data = self.T_data,
             T_cost = self.T_cost,
             beta = 2,
@@ -331,7 +331,7 @@ class FuncCostRatio(CostAcqFunc):
     def acq(self):
         return FuncCostRatio(
             model = self.model,
-            cost_model=self.cost_model,
+            cost_model = self.cost_model,
             T_data = self.T_data,
             T_cost = self.T_cost,
         )
