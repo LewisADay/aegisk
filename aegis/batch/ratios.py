@@ -1,9 +1,7 @@
 
 import botorch
-import numpy as np
 import torch
 from torch import Tensor
-from torch.distributions import Normal
 from .acquisitions import AcqBaseBatchBO
 from botorch.utils.transforms import t_batch_mode_transform
 import botorch
