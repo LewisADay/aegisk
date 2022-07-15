@@ -1,3 +1,4 @@
+from argparse import ArgumentError
 import time
 from typing import List, Dict, Union, Optional, Callable
 from concurrent import futures
@@ -347,6 +348,41 @@ class SimExecutor(ExecutorBase):
         if update:
             self._update_internal_state()
 
+    def kill_evaluation(self, x):
+
+        # Index of evaluation x
+        idx = None
+
+        # Find x in running tasks
+        for k in range(len(self._running_tasks)):
+            task = self._running_tasks[k]
+            if task["x"] == x:
+                idx = k
+
+        # If x in running tasks, remove it
+        if idx is not None:
+            self._running_tasks.pop(idx)
+            self._running_jobs_timings = np.delete(
+                self._running_jobs_timings, idx
+            )
+        else:
+            # If not, find x in queue
+            for k in range(len(self._queue)):
+                task = self._queue[k]
+                if task["x"] == x:
+                    idx = k
+
+            # If x in queue, remove it
+            if idx is not None:
+                self._queue.pop(idx)
+            else:
+                # Not in running tasks or queue, x is not
+                # an ongoing evaluation
+                raise ArgumentError("x not an ongoing evaluation")
+
+        # Make appropriate internal updates
+        self._update_internal_state()
+
     def _update_internal_state(self) -> None:
         """
         Main function that takes care of moving jobs to the correct places
@@ -457,7 +493,6 @@ class SimExecutor(ExecutorBase):
             job["t"] = np.random.rand()
         return job
 
-
 class SimExecutorIntegerTicks(SimExecutor):
     """Async simulator with integer time incrementing
     """
@@ -477,7 +512,6 @@ class SimExecutorIntegerTicks(SimExecutor):
         self._time_ticker += 1
         self._running_jobs_timings -= 1
         self._update_internal_state()
-
 
 class SimExecutorJumpToCompletedJob(SimExecutor):
     """Async simulator that jumps to the next completed job each time it
@@ -508,10 +542,6 @@ class SimExecutorJumpToCompletedJob(SimExecutor):
         self._time_ticker += increment
         self._running_jobs_timings -= increment
         self._update_internal_state()
-
-    def kill_job(self, point):
-        pass
-
 
 class SimExecutorJumpToCompletedJobProblemDependant(SimExecutorJumpToCompletedJob):
     def __init__(
@@ -634,7 +664,6 @@ class JobExecutor(ExecutorBase):
         future = self._executor.submit(job["f"], job["x"])
         return future
 
-
 class JobExecutorInSeries(JobExecutor):
     """Interface that runs the jobs in series
     but acts like a batch-running interface to the outside.
@@ -680,7 +709,6 @@ class JobExecutorInSeries(JobExecutor):
                     and len(self._running_tasks) < self.n_workers
                 ):
                     self._running_tasks.append(self._queue.pop(0))
-
 
 class JobExecutorInSeriesBlocking(ExecutorBase):
     """Interface that runs the jobs in series and blocks execution of code
@@ -740,7 +768,6 @@ class JobExecutorInSeriesBlocking(ExecutorBase):
             len(self._running_tasks) < self.n_workers and len(self._queue) > 0
         ):
             self._running_tasks.append(self._queue.pop(0))
-
 
 class AsyncJobExecutorInSeriesBlocking(JobExecutorInSeriesBlocking):
     """Interface that runs the jobs in series and blocks execution of code

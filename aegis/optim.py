@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from . import gp, test_problems, transforms, util, executor, time_dists, batch
+from . import gp, test_problems, transforms, util, executor, time_dists, batch, killing
 
 
 def perform_optimisation(
@@ -15,8 +15,9 @@ def perform_optimisation(
     time_name,
     save_every=10,
     repeat_no=None,
-    interface='job',
     bo_name='AsyncBO',
+    kill_name=None,
+    killing_params=None,
 ):
 
     # set up the saving paths
@@ -60,10 +61,6 @@ def perform_optimisation(
 
     # instantiate the time function
     time_class = getattr(time_dists, time_name)
-    if interface == "job":
-        time_func = time_class()
-    elif interface == "job-dependant":
-        time_func = time_class(f)
 
     # get the acquisition function class
     acq_class = getattr(batch, acq_name)
@@ -72,19 +69,34 @@ def perform_optimisation(
     asbo = eval(bo_name)
 
     # run the BO
-    asbo = asbo(
-        f,
-        Xtr,
-        Ytr,
-        acq_class,
-        acq_params,
-        budget,
-        n_workers,
-        q=1,
-        time_func=time_func,
-        verbose=True,
-        interface=interface
-    )
+    if kill_name is not None:
+        asbo = asbo(
+            f,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            q=1,
+            time_func=time_class,
+            verbose=True,
+            kill_name=kill_name,
+            killing_params=killing_params
+        )
+    else:
+        asbo = asbo(
+            f,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            q=1,
+            time_func=time_class,
+            verbose=True,
+        )
 
     # useful stuff to keep a record of
     save_dict = {
@@ -111,7 +123,6 @@ def perform_optimisation(
 
     print("Finished run")
 
-
 class AsyncBO:
     def __init__(
         self,
@@ -122,11 +133,11 @@ class AsyncBO:
         acq_params,
         budget,
         n_workers,
+        time_func,
         q=1,
-        time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job"
     ):
+
         self.f = func
         self.Xtr = Xtr
         self.Ytr = Ytr
@@ -136,19 +147,12 @@ class AsyncBO:
         self.n_workers = n_workers
         self.q = q
         self.output_transform = getattr(transforms, "Transform_Standardize",)
-        self.time_func = time_func
+        self.time_func = self._init_time_func(time_func)
         self.verbose = verbose
 
-        interfaces = {
-            "job": executor.SimExecutorJumpToCompletedJob(
-                n_workers=n_workers, time_func=time_func, verbose=verbose
-            ),
-            "job-dependant": executor.SimExecutorJumpToCompletedJobProblemDependant(
-                n_workers=n_workers, time_func=time_func, verbose=verbose
-            )
-        }
-
-        self.interface = interfaces[interface]
+        self.interface = executor.SimExecutorJumpToCompletedJob(
+            n_workers=n_workers, time_func=time_func, verbose=verbose
+        )
 
         self.dtype = Ytr.dtype
 
@@ -171,6 +175,9 @@ class AsyncBO:
 
         # acquisition function, initialised after we have built a model
         self._acq = None
+
+    def _init_time_func(self, time_class):
+        return time_class()
 
     @property
     def acq(self):
@@ -228,6 +235,20 @@ class AsyncBO:
     def _update_acq(self):
         self.acq.update(self.model, self.ue.get())
 
+    def _create_job(self, x):
+        return {"x": x, "f": self.f}
+
+    def _adopt_x(self, x):
+        # create the job and submit it
+        job = self._create_job(x)
+        self.interface.add_job_to_queue(job)
+
+        # add to under evaluation
+        self.ue.add(x)
+
+        if self.verbose:
+            print("Submitted ->", x.numpy().ravel())
+
     def _create_and_submit_jobs(self):
         # only submit up to the budget
         n_to_submit = np.minimum(
@@ -246,15 +267,8 @@ class AsyncBO:
             # get the next location to evaluate
             x = self.acq.get_next()
 
-            # create the job and submit it
-            job = {"x": x, "f": self.f}
-            self.interface.add_job_to_queue(job)
-
-            # add to under evaluation
-            self.ue.add(x)
-
-            if self.verbose:
-                print("Submitted ->", x.numpy().ravel())
+            # Adopt x
+            self._adopt_x(x)
 
         self.n_submitted += n_to_submit
 
@@ -351,7 +365,7 @@ class AsyncBO:
         resd = {"ProblemModel": self.model}
         return resd
 
-class AsyncCostAcqBO(AsyncBO):
+class AsyncDependantTimeBO(AsyncBO):
     def __init__(
         self,
         func,
@@ -361,14 +375,12 @@ class AsyncCostAcqBO(AsyncBO):
         acq_params,
         budget,
         n_workers,
+        time_func,
         q=1,
-        time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job"
     ):
 
-        AsyncBO.__init__(
-            self,
+        super().__init__(
             func,
             Xtr,
             Ytr,
@@ -376,20 +388,78 @@ class AsyncCostAcqBO(AsyncBO):
             acq_params,
             budget,
             n_workers,
+            time_func,
             q=q,
-            time_func=time_func,
             verbose=verbose,
-            interface=interface
+        )
+
+    def _create_job(self, x):
+        return {"x": x, "f": self.f, "t": self.time_func(x)}
+
+class AsyncProblemDependantTime(AsyncDependantTimeBO):
+    def __init__(
+        self,
+        func,
+        Xtr,
+        Ytr,
+        acq_class,
+        acq_params,
+        budget,
+        n_workers,
+        time_func,
+        q=1,
+        verbose=False,
+    ):
+
+        super().__init__(
+            func,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            time_func,
+            q=q,
+            verbose=verbose,
+        )
+
+    def _init_time_func(self, time_class):
+        return time_class(self.f)
+
+class AsyncCostAcqBO(AsyncProblemDependantTime):
+    def __init__(
+        self,
+        func,
+        Xtr,
+        Ytr,
+        acq_class,
+        acq_params,
+        budget,
+        n_workers,
+        time_func,
+        q=1,
+        verbose=False,
+    ):
+
+        super().__init__(
+            func,
+            Xtr,
+            Ytr,
+            acq_class,
+            acq_params,
+            budget,
+            n_workers,
+            time_func,
+            q=q,
+            verbose=verbose,
         )
 
         self.cost = torch.zeros_like(Ytr, dtype=self.dtype)
 
         # sample time function for time of initialised points Xtr
         for i in range(self.time_taken.shape[0]):
-            if interface == 'job':
-                self.cost[i] = torch.as_tensor(time_func())
-            elif interface == 'job-dependant':
-                self.cost[i] = torch.as_tensor(time_func(Xtr[i]))
+                self.cost[i] = torch.as_tensor(self.time_func(Xtr[i]))
 
     @property
     def acq(self):
@@ -496,7 +566,6 @@ class AsyncCostAcqBO(AsyncBO):
             }
         return resd
 
-
 class AsyncSKBO(AsyncCostAcqBO):
     def __init__(
         self,
@@ -507,12 +576,14 @@ class AsyncSKBO(AsyncCostAcqBO):
         acq_params,
         budget,
         n_workers,
+        time_func,
         q=1,
-        time_func=time_dists.halfnorm(),
         verbose=False,
-        interface="job"
+        kill_name=None,
+        killing_params=None,
     ):
-        AsyncCostAcqBO.__init__(
+
+        super().__init__(
             self,
             func,
             Xtr,
@@ -521,14 +592,92 @@ class AsyncSKBO(AsyncCostAcqBO):
             acq_params,
             budget,
             n_workers,
-            q=q,
             time_func=time_func,
+            q=q,
             verbose=verbose,
-            interface=interface
         )
 
+        # Get class handle for killing method
+        self._killing_method_class = getattr(killing, kill_name)
+        self.killing_params = killing_params
+
+        # Initialise after we have built a model
+        self._killing_method = None
+
+    @property
+    def killing_method(self):
+        if self._killing_method is None:
+            self._killing_method = self._killing_method_class(
+                model=self.model,
+                cost_model=self.cost_model,
+                T_data=self.output_transform(self.Ytr),
+                T_cost=self.output_transform(self.cost),
+                lb=self.f.lb,
+                ub=self.f.ub,
+                under_evaluation=self.ue.get(),
+                **self.killing_params,
+            )
+
+        return self._killing_method
+
+    def _update_killing_method(self):
+        self.killing_method.update(self.model, self.ue.get(), self.cost_model)
+
+    def kill_x(self, x):
+        # Remove from UnderEval
+        self.ue.remove(x)
+
+        # Remove from interface
+        self.interface.kill_evaluation(x)
+
     def _kill_and_submit_jobs(self):
-        pass
+        # only submit up to the budget
+        n_to_submit = np.minimum(
+            self.budget - self.n_submitted,  # total left to submit
+            self.interface.status["n_free_workers"],  # free workers
+        )
+        if n_to_submit < 1:
+            return
+
+        # get locations to evaluate from the acquisition function, create a
+        # job, and submit it
+        for _ in range(n_to_submit):
+
+            # update the acquisition function ready for use
+            self._update_acq()
+
+            # update killing function ready for use
+            self._update_killing_method()
+
+            # get the next location to evaluate
+            x_star = self.acq.get_next()
+
+            # While we have not finished killing
+            while self.killing_method.possible_killing: 
+
+                # Determine x to kill, if any
+                x_i = self.killing_method._get_next(x_star)
+
+                # If something to kill
+                if x_i is not None:
+                    #kill x_i
+                    self.kill_x(x_i)
+                    #adopt x_star
+                    self.adopt_x(x_star)
+                    #generate new x_star
+                    self._update_acq()
+                    x_star = self.acq.get_next()
+                else:
+                    # Call the ending killing method to do any
+                    # necessary clean up, which must include setting
+                    # the possible killing flag to false
+                    self.killing_method.finish_killing()
+
+            # We have check all evaluations and do not want to kill them
+            # so adopt x_star
+            self.adopt_s(x_star)
+
+        self.n_submitted += n_to_submit
 
     def step(self):
 
