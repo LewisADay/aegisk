@@ -6,7 +6,9 @@ from .aegis import (
 from .hallucination import HalluBatchBO
 from .penalisation import (
     LocalPenalisationBatchBO,
+    LocalPenalisationBatchBOCost,
     HardLocalPenalisationBatchBO,
+    HardLocalPenalisationBatchBOCost,
 )
 from .aegis_ablation import (
     ablationNoExploitRS,
@@ -29,7 +31,9 @@ __all__ = [
     "aegisExploitParetoFront",
     "HalluBatchBO",
     "LocalPenalisationBatchBO",
+    "LocalPenalisationBatchBOCost",
     "HardLocalPenalisationBatchBO",
+    "HardLocalPenalisationBatchBOCost",
     "ablationNoExploitRS",
     "ablationNoExploitPF",
     "ablationNoSamplepathRS",

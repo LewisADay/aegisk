@@ -78,8 +78,8 @@ def perform_optimisation(
             acq_params,
             budget,
             n_workers,
+            time_class,
             q=1,
-            time_func=time_class,
             verbose=True,
             kill_name=kill_name,
             killing_params=killing_params
@@ -93,8 +93,8 @@ def perform_optimisation(
             acq_params,
             budget,
             n_workers,
+            time_class,
             q=1,
-            time_func=time_class,
             verbose=True,
         )
 
@@ -365,7 +365,7 @@ class AsyncBO:
         resd = {"ProblemModel": self.model}
         return resd
 
-class AsyncDependantTimeBO(AsyncBO):
+class AsyncDependantCostBO(AsyncBO):
     def __init__(
         self,
         func,
@@ -396,7 +396,7 @@ class AsyncDependantTimeBO(AsyncBO):
     def _create_job(self, x):
         return {"x": x, "f": self.f, "t": self.time_func(x)}
 
-class AsyncProblemDependantTime(AsyncDependantTimeBO):
+class AsyncProblemDependantCost(AsyncDependantCostBO):
     def __init__(
         self,
         func,
@@ -427,7 +427,7 @@ class AsyncProblemDependantTime(AsyncDependantTimeBO):
     def _init_time_func(self, time_class):
         return time_class(self.f)
 
-class AsyncCostAcqBO(AsyncProblemDependantTime):
+class AsyncCostAcqBO(AsyncProblemDependantCost):
     def __init__(
         self,
         func,
@@ -584,7 +584,6 @@ class AsyncSKBO(AsyncCostAcqBO):
     ):
 
         super().__init__(
-            self,
             func,
             Xtr,
             Ytr,
@@ -592,7 +591,7 @@ class AsyncSKBO(AsyncCostAcqBO):
             acq_params,
             budget,
             n_workers,
-            time_func=time_func,
+            time_func,
             q=q,
             verbose=verbose,
         )
@@ -603,6 +602,14 @@ class AsyncSKBO(AsyncCostAcqBO):
 
         # Initialise after we have built a model
         self._killing_method = None
+
+    def _get_ongoing_run_times(self):
+        ongoing_tasks = self.interface._running_tasks
+        res = [0] * len(ongoing_tasks)
+        times = self.interface._ongoing_start_times
+        for k in range(len(ongoing_tasks)):
+            res[k] = self.interface._time_ticker - times[k]
+        return res
 
     @property
     def killing_method(self):
@@ -615,13 +622,14 @@ class AsyncSKBO(AsyncCostAcqBO):
                 lb=self.f.lb,
                 ub=self.f.ub,
                 under_evaluation=self.ue.get(),
+                eval_times=self._get_ongoing_run_times(),
                 **self.killing_params,
             )
 
         return self._killing_method
 
     def _update_killing_method(self):
-        self.killing_method.update(self.model, self.ue.get(), self.cost_model)
+        self.killing_method.update(self.model, self.ue.get(), self.cost_model, self._get_ongoing_run_times())
 
     def kill_x(self, x):
         # Remove from UnderEval
@@ -639,43 +647,46 @@ class AsyncSKBO(AsyncCostAcqBO):
         if n_to_submit < 1:
             return
 
+        # update the acquisition function ready for use
+        self._update_acq()
+
+        # update killing function ready for use
+        self._update_killing_method()
+
         # get locations to evaluate from the acquisition function, create a
         # job, and submit it
         for _ in range(n_to_submit):
 
-            # update the acquisition function ready for use
-            self._update_acq()
-
-            # update killing function ready for use
-            self._update_killing_method()
-
             # get the next location to evaluate
-            x_star = self.acq.get_next()
+            x_star = self.acq._get_next()
 
             # While we have not finished killing
-            while self.killing_method.possible_killing: 
+            killed_something = True
+            while killed_something: 
 
                 # Determine x to kill, if any
                 x_i = self.killing_method._get_next(x_star)
 
                 # If something to kill
                 if x_i is not None:
+                    print(f"Killing {x_i}")
                     #kill x_i
                     self.kill_x(x_i)
                     #adopt x_star
-                    self.adopt_x(x_star)
+                    self._adopt_x(x_star)
                     #generate new x_star
                     self._update_acq()
-                    x_star = self.acq.get_next()
+                    self._update_killing_method()
+                    x_star = self.acq._get_next()
                 else:
-                    # Call the ending killing method to do any
-                    # necessary clean up, which must include setting
-                    # the possible killing flag to false
-                    self.killing_method.finish_killing()
+                    # We haven't killed anything, so we're done for now
+                    killed_something = False
 
-            # We have check all evaluations and do not want to kill them
+            # We have checked all evaluations and do not want to kill them
             # so adopt x_star
-            self.adopt_s(x_star)
+            self._adopt_x(x_star)
+            self._update_acq()
+            self._update_killing_method()
 
         self.n_submitted += n_to_submit
 

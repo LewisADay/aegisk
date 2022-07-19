@@ -98,10 +98,10 @@ class EICostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
 
         ei = ei.forward(X)
 
-        et = self.cost_model(X)
-        et = self.T_cost.unscale_mean(et.mean.ravel())
+        ec = self.cost_model(X)
+        ec = self.T_cost.unscale_mean(ec.mean.ravel())
 
-        return torch.div(ei, et)
+        return torch.div(ei, ec)
 
 class UCBCostAcq(botorch.acquisition.AnalyticAcquisitionFunction):
     def __init__(

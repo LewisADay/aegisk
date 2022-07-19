@@ -62,6 +62,12 @@ class PenalisationBaseBatchBO(AcqBaseBatchBO):
 
         return res
 
+    def update(self, model, under_evaluation):
+        super().update(model, under_evaluation)
+        for ongoing in under_evaluation:
+            if not any(torch.eq(self.acq.X, ongoing)):
+                self._add_locations(ongoing)
+
 
 class LocalPenalisationBatchBO(PenalisationBaseBatchBO):
     def __init__(
@@ -91,6 +97,35 @@ class LocalPenalisationBatchBO(PenalisationBaseBatchBO):
         )
 
 
+class LocalPenalisationBatchBOCost(LocalPenalisationBatchBO):
+    def __init__(
+        self,
+        model,
+        cost_model,
+        T_data,
+        T_cost,
+        lb,
+        ub,
+        under_evaluation,
+        acq_name,
+        n_opt_samples,
+        n_opt_bfgs,
+    ):
+        LocalPenalisationBatchBO.__init__(
+            self,
+            model,
+            lb,
+            ub,
+            under_evaluation,
+            acq_name,
+            n_opt_samples,
+            n_opt_bfgs,
+        )
+
+    def update(self, model, under_evaluation, cost_model):
+        return super().update(model, under_evaluation)
+
+
 class HardLocalPenalisationBatchBO(PenalisationBaseBatchBO):
     def __init__(
         self,
@@ -117,6 +152,35 @@ class HardLocalPenalisationBatchBO(PenalisationBaseBatchBO):
         return HardLocalPenalisation(
             self.model, None, self.lb, self.ub, self.acq_name, None
         )
+
+
+class HardLocalPenalisationBatchBOCost(HardLocalPenalisationBatchBO):
+    def __init__(
+        self,
+        model,
+        cost_model,
+        T_data,
+        T_cost,
+        lb,
+        ub,
+        under_evaluation,
+        acq_name,
+        n_opt_samples,
+        n_opt_bfgs,
+    ):
+        LocalPenalisationBatchBO.__init__(
+            self,
+            model,
+            lb,
+            ub,
+            under_evaluation,
+            acq_name,
+            n_opt_samples,
+            n_opt_bfgs,
+        )
+
+    def update(self, model, under_evaluation, cost_model):
+        return super().update(model, under_evaluation)
 
 
 class LocalPenalisation(botorch.acquisition.AnalyticAcquisitionFunction):

@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+import torch
 
 class timefunc:
     def __init__(self, name):
@@ -70,7 +71,7 @@ class gausstime(timefunc):
         return scipy.stats.norm.pdf(x, self.mean, self.scale).flatten() + 1
     
 class corrtime(timefunc):
-    def __init__(self, prob, a=1, name=None):
+    def __init__(self, prob, a=10, name=None):
         if name is None:
             timefunc.__init__(self, "corrtime")
         else:
@@ -84,12 +85,8 @@ class corrtime(timefunc):
         return (self.prob(x)-self.yopt) * self.a + np.abs(self.yopt)
     
 class negcorrtime(corrtime):
-    def __init__(self, prob, a=1):
+    def __init__(self, prob, a=10):
         corrtime.__init__(self, prob, a, "negcorrtime")
-        
-        _x = np.arange(prob.lb, prob.ub, 1e-5)
-        self.full_range = prob(_x)
-        self.max = max(self.full_range) - self.yopt
     
     def __call__(self, x, n=1):
         #return self.max - (self.prob(x)-self.yopt) * self.a

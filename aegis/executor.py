@@ -216,7 +216,6 @@ class ExecutorBase:
             print(f"{self.__class__.__name__}.get_running_jobs")
         return self._running_tasks
 
-
 class SimExecutor(ExecutorBase):
     """Simulated Async execution of expensive evaluations.
 
@@ -247,6 +246,9 @@ class SimExecutor(ExecutorBase):
         # This list will hold a counter that will decrement each time the
         # status is checked (simulating waiting for the job to complete)
         self._running_jobs_timings = np.array([])
+
+        # To hold the start time of each of the ongoing evaluations
+        self._ongoing_start_times = np.array([])
 
     @property
     def age(self) -> float:
@@ -365,6 +367,9 @@ class SimExecutor(ExecutorBase):
             self._running_jobs_timings = np.delete(
                 self._running_jobs_timings, idx
             )
+            self._ongoing_start_times = np.delete(
+                self._ongoing_start_times, idx
+            )
         else:
             # If not, find x in queue
             for k in range(len(self._queue)):
@@ -422,6 +427,9 @@ class SimExecutor(ExecutorBase):
                 self._running_jobs_timings = np.delete(
                     self._running_jobs_timings, idx
                 )
+                self._ongoing_start_times = np.delete(
+                    self._ongoing_start_times, idx
+                )
 
             self._update_internal_counts()
         self._begin_queued_job_if_workers_free()
@@ -472,6 +480,7 @@ class SimExecutor(ExecutorBase):
 
         t = task["t"]
         self._running_jobs_timings = np.hstack((self._running_jobs_timings, t))
+        self._ongoing_start_times = np.hstack((self._ongoing_start_times, self._time_ticker))
 
         self._update_internal_counts()
 
