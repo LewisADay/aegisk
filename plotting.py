@@ -173,13 +173,16 @@ def acq_plot(ax, acq_class, color=np.array([227, 119, 194])/255, xlim=(0,1)):
 
     ax.plot(torch.asarray(test_x), torch.asarray(preds), color=color)
 
-def mark_acq_choice_plot(axes, acq, color="red"):
+def plot_vline(ax, x, color="red", alpha=0.8):
+    ax.axvline(x=np.asarray(x), linestyle="--", color=color, alpha=alpha)
 
-    choice = torch.asarray(acq.get_next())
-
+def plot_vline_axes(axes, x, color="red", alpha=0.8):
     for ax in axes:
-        ax.axvline(x=np.asarray(choice), linestyle="--", color=color, alpha=0.8)
+        plot_vline(ax, x, color=color, alpha=alpha)
 
+def mark_acq_choice_plot(axes, acq, color="red", alpha=0.8):
+    choice = torch.asarray(acq._get_next())
+    plot_vline_axes(axes, choice, color=color, alpha=alpha)
 
 def time_plot(
     ax,
