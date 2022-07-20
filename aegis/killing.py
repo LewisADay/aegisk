@@ -346,7 +346,7 @@ class DeterministicKilling(SelectiveKillingBase):
 
     def _ongoing_value(self, x):
 
-        tmp_ue = torch.as_tensor([[_x] for _x in self.ue if _x != x])
+        tmp_ue = torch.as_tensor([[_x] for _x in self.ue if not torch.equal(_x, x)])
         tmp_acq = self._acq(tmp_ue)
 
         numerator = tmp_acq.acq.forward(x)
