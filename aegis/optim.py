@@ -20,6 +20,9 @@ def perform_optimisation(
     killing_params=None,
 ):
 
+    if kill_name is None:
+        kill_name = "NoKilling"
+
     # set up the saving paths
     save_path = util.generate_save_filename(
         time_name,
@@ -29,6 +32,7 @@ def perform_optimisation(
         acq_name,
         run_no,
         bo_name,
+        kill_name,
         problem_params,
         acq_params,
         repeat_no=repeat_no,

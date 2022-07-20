@@ -16,9 +16,9 @@ from aegis.transforms import Transform_Standardize
 
 
 def read_in_results(
-    time_functions, workers, problems, method_names, n_runs, budget, bo_names,
+    time_functions, workers, problems, method_names, killing_names, n_runs, budget, bo_names,
 ):
-    # D[time_func][workers][problem][method]
+    # D[time_func][workers][problem][method][kill_name]
     D = {}
 
     total = (
@@ -26,6 +26,7 @@ def read_in_results(
         * len(workers)
         * len(method_names)
         * len(problems)
+        * len(killing_names)
         * n_runs
     )
 
@@ -48,12 +49,10 @@ def read_in_results(
                     f = f_class(**problem_params)
 
                     for method_name in method_names:
-
+                        D[time_func][n_workers][pn][method_name] = {}
+                        
                         bo_name = bo_names[method_name]
                         
-                        res = np.zeros((n_runs, budget))
-                        times = np.zeros((n_runs, budget))
-                        costs = np.zeros((n_runs, budget))
                         acq_params = {}
 
                         if "-" in method_name:
@@ -81,49 +80,55 @@ def read_in_results(
                         else:
                             mn = method_name
 
-                        for i, run_no in enumerate(range(1, n_runs + 1)):
-                            fn = util.generate_save_filename(
-                                time_func,
-                                problem_name,
-                                budget,
-                                n_workers,
-                                mn,
-                                run_no,
-                                bo_name,
-                                problem_params,
-                                acq_params,
-                            )
+                        for kill_name in killing_names:
+                            res = np.zeros((n_runs, budget))
+                            times = np.zeros((n_runs, budget))
+                            costs = np.zeros((n_runs, budget))
 
-                            try:
+                            for i, run_no in enumerate(range(1, n_runs + 1)):
+                                fn = util.generate_save_filename(
+                                    time_func,
+                                    problem_name,
+                                    budget,
+                                    n_workers,
+                                    mn,
+                                    run_no,
+                                    bo_name,
+                                    kill_name,
+                                    problem_params,
+                                    acq_params,
+                                )
 
-                                data = torch.load(fn)
-                                Ytr = data["Ytr"].numpy().ravel()
-                                time = data["time"].numpy().ravel()
-                                cost = data["cost"].numpy().ravel()
-                                n = Ytr.size
+                                try:
 
-                                res[i, :n] = Ytr
-                                times[i, :n] = time
-                                costs[i, :n] = cost
+                                    data = torch.load(fn)
+                                    Ytr = data["Ytr"].numpy().ravel()
+                                    time = data["time"].numpy().ravel()
+                                    cost = data["cost"].numpy().ravel()
+                                    n = Ytr.size
 
-                                if n != budget:
-                                    print("Not full:", fn, Ytr.shape)
+                                    res[i, :n] = Ytr
+                                    times[i, :n] = time
+                                    costs[i, :n] = cost
 
-                            except FileNotFoundError:
-                                print("Missing", os.path.basename(fn))
-                                raise
-                            except:  # noqa: E722
-                                print(method_name)
-                                print(mn)
-                                print(fn)
-                                raise
+                                    if n != budget:
+                                        print("Not full:", fn, Ytr.shape)
 
-                            pbar.update()
+                                except FileNotFoundError:
+                                    print("Missing", os.path.basename(fn))
+                                    raise
+                                except:  # noqa: E722
+                                    print(method_name)
+                                    print(mn)
+                                    print(fn)
+                                    raise
 
-                        res = np.abs(res - f.yopt.ravel()[0])
-                        res = np.minimum.accumulate(res, axis=1)  # type: ignore
+                                pbar.update()
 
-                        D[time_func][n_workers][pn][method_name] = {'y': res, 't': times, 'c': costs}
+                            res = np.abs(res - f.yopt.ravel()[0])
+                            res = np.minimum.accumulate(res, axis=1)  # type: ignore
+
+                            D[time_func][n_workers][pn][method_name][kill_name] = {'y': res, 't': times, 'c': costs}
 
     return D
 
