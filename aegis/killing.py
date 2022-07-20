@@ -1,7 +1,7 @@
 
 import botorch
 import torch
-from aegis import batch
+from aegis import batch, util
 from .batch.ratios import CostAcqFunc, EICostAcq, UCBCostAcq
 
 
@@ -346,7 +346,7 @@ class DeterministicKilling(SelectiveKillingBase):
 
     def _ongoing_value(self, x):
 
-        tmp_ue = torch.as_tensor([_x for _x in self.ue if _x != x])
+        tmp_ue = torch.as_tensor([[_x] for _x in self.ue if _x != x])
         tmp_acq = self._acq(tmp_ue)
 
         numerator = tmp_acq.acq.forward(x)
@@ -377,10 +377,6 @@ class DeterministicKilling(SelectiveKillingBase):
             return self._candidate_value(x)
 
     def eligibility_criteria(self, x_star, x_i):
-        print("%%%%%%%%%%%%%%%%%%%")
-        print(f"x_star: {x_star[0][0]}, val:{self.value(x_star)[0]}")
-        print(f"x_i: {x_i[0][0]}, val:{self.value(x_i)[0]}")
-        print("%%%%%%%%%%%%%%%%%%%")
         if self.value(x_star) > self.value(x_i) + self.delta:
             return True
         else:
@@ -389,12 +385,10 @@ class DeterministicKilling(SelectiveKillingBase):
     def decision(self, x_is):
         for x_i in x_is:
             adopt = True
-            print(f"here: {x_i}") #################
             for x_j in [_ for _ in x_is if _ != x_i]:
                 if self.value(x_j) < self.value(x_i):
                     adopt = False
             if adopt:
-                print(f"Returning: {x_i}")
                 return x_i
 
         # If none met our criteria
@@ -521,10 +515,6 @@ class ProabilisticKilling(SelectiveKillingBase):
             return self._candidate_value(x)
 
     def eligibility_criteria(self, x_star, x_i):
-        print("%%%%%%%%%%%%%%%%%%%")
-        print(f"x_star: {x_star[0][0]}, val:{self.value(x_star)[0]}")
-        print(f"x_i: {x_i[0][0]}, val:{self.value(x_i)[0]}")
-        print("%%%%%%%%%%%%%%%%%%%")
         if self.value(x_star) > self.value(x_i) + self.delta:
             return True
         else:
@@ -533,12 +523,10 @@ class ProabilisticKilling(SelectiveKillingBase):
     def decision(self, x_is):
         for x_i in x_is:
             adopt = True
-            print(f"here: {x_i}") #################
             for x_j in [_ for _ in x_is if _ != x_i]:
                 if self.value(x_j) < self.value(x_i):
                     adopt = False
             if adopt:
-                print(f"Returning: {x_i}")
                 return x_i
 
         # If none met our criteria

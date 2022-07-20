@@ -168,7 +168,7 @@ class HardLocalPenalisationBatchBOCost(HardLocalPenalisationBatchBO):
         n_opt_samples,
         n_opt_bfgs,
     ):
-        LocalPenalisationBatchBO.__init__(
+        HardLocalPenalisationBatchBO.__init__(
             self,
             model,
             lb,
