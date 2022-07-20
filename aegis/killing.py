@@ -336,16 +336,7 @@ class DeterministicKilling(SelectiveKillingBase):
 
     @property
     def acq(self):
-        return self._acq_class(
-                model=self.model,
-                cost_model=self.cost_model,
-                T_data=self.T_data,
-                T_cost=self.T_cost,
-                lb=self.lb,
-                ub=self.ub,
-                under_evaluation=self.ue,
-                **self._acq_params,
-            )
+        return self._acq(self.ue)
 
 
     def _get_index_of_x(self, x):
@@ -369,8 +360,6 @@ class DeterministicKilling(SelectiveKillingBase):
         return torch.div(numerator, ec)
 
     def _candidate_value(self, x):
-
-        self.acq.update(self.model, self.ue, self.cost_model)
 
         numerator = self.acq.acq.forward(x)
 
