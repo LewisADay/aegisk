@@ -8,3 +8,6 @@ __pycache__
 .vscode
 
 results.zip
+
+# output figures
+_output_figures
