@@ -65,7 +65,7 @@ class PenalisationBaseBatchBO(AcqBaseBatchBO):
     def update(self, model, under_evaluation):
         super().update(model, under_evaluation)
         for ongoing in under_evaluation:
-            if not any(torch.eq(self.acq.X, ongoing)):
+            if not any([torch.equal(_x, ongoing) for _x in self.acq.X]):
                 self._add_locations(ongoing)
 
 

@@ -341,7 +341,9 @@ class DeterministicKilling(SelectiveKillingBase):
 
     def _get_index_of_x(self, x):
         for k in range(len(self.ue)):
-            if x == self.ue[k]:
+            #if x == self.ue[k]:
+            if torch.equal(x, self.ue[k]):
+                print(k)
                 return k
 
     def _ongoing_value(self, x):
@@ -349,9 +351,10 @@ class DeterministicKilling(SelectiveKillingBase):
         tmp_ue = torch.as_tensor([[_x] for _x in self.ue if not torch.equal(_x, x)])
         tmp_acq = self._acq(tmp_ue)
 
-        numerator = tmp_acq.acq.forward(x)
+        _x = torch.reshape(x, (1,len(x)))
+        numerator = tmp_acq.acq.forward(_x)
 
-        ec = self.cost_model(x)
+        ec = self.cost_model(_x)
         ec = self.T_cost.unscale_mean(ec.mean.ravel())
         ec = ec - self.eval_times[self._get_index_of_x(x)]
         if ec < 0:
@@ -397,8 +400,10 @@ class DeterministicKilling(SelectiveKillingBase):
     def _get_next(self, x_star):
         x_is = []
         for x_i in self.ue:
-            x_i = torch.reshape(x_i, (1,len(x_i)))
+            print(f"xi: {x_i}")
+            #x_i = torch.reshape(x_i, (1,len(x_i)))
             if self.eligibility_criteria(x_star, x_i):
+                x_i = torch.reshape(x_i, (1,len(x_i)))
                 x_is.append(x_i)
         
         # If we have no eligible evaluations return

@@ -243,6 +243,7 @@ class AsyncBO:
         return {"x": x, "f": self.f}
 
     def _adopt_x(self, x):
+
         # create the job and submit it
         job = self._create_job(x)
         self.interface.add_job_to_queue(job)
@@ -636,11 +637,15 @@ class AsyncSKBO(AsyncCostAcqBO):
         self.killing_method.update(self.model, self.ue.get(), self.cost_model, self._get_ongoing_run_times())
 
     def kill_x(self, x):
+
         # Remove from UnderEval
         self.ue.remove(x)
 
         # Remove from interface
         self.interface.kill_evaluation(x)
+
+        if self.verbose:
+            print("Killing ->", x.numpy().ravel())
 
     def _kill_and_submit_jobs(self):
         # only submit up to the budget
@@ -673,7 +678,6 @@ class AsyncSKBO(AsyncCostAcqBO):
 
                 # If something to kill
                 if x_i is not None:
-                    print(f"Killing {x_i}")
                     #kill x_i
                     self.kill_x(x_i)
                     #adopt x_star
