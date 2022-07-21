@@ -1,6 +1,7 @@
 
 import botorch
 import torch
+import numpy as np
 from aegis import batch, util
 from .batch.ratios import CostAcqFunc, EICostAcq, UCBCostAcq
 
@@ -429,9 +430,9 @@ class ProabilisticKilling(SelectiveKillingBase):
         eval_times,
         n_opt_samples,
         n_opt_bfgs,
-        p,
-        acq_name,
-        acq_params,
+        alpha=0.8,
+        n_samples=100,
+        epsilon=1e-8
     ):
 
         kill_name = "ProabilisticKilling"
@@ -450,86 +451,87 @@ class ProabilisticKilling(SelectiveKillingBase):
             n_opt_bfgs,
         )
 
-        self.p = p
-        self._acq_class = getattr(batch, acq_name)
-        self._acq_params = acq_params
-
-    def _acq(self, ue):
-        return self._acq_class(
-                model=self.model,
-                cost_model=self.cost_model,
-                T_data=self.T_data,
-                T_cost=self.T_cost,
-                lb=self.lb,
-                ub=self.ub,
-                under_evaluation=ue,
-                **self._acq_params,
-            )
-
-    @property
-    def acq(self):
-        return self._acq_class(
-                model=self.model,
-                cost_model=self.cost_model,
-                T_data=self.T_data,
-                T_cost=self.T_cost,
-                lb=self.lb,
-                ub=self.ub,
-                under_evaluation=self.ue,
-                **self._acq_params,
-            )
-
+        self.alpha = alpha
+        self.n_samples = n_samples
+        self.epsilon = epsilon
 
     def _get_index_of_x(self, x):
         for k in range(len(self.ue)):
             if x == self.ue[k]:
                 return k
 
-    def _ongoing_value(self, x):
-
-        tmp_ue = torch.as_tensor([_x for _x in self.ue if _x != x])
-        tmp_acq = self._acq(tmp_ue)
-
-        numerator = tmp_acq.acq.forward(x)
-
-        ec = self.cost_model(x)
-        ec = self.T_cost.unscale_mean(ec.mean.ravel())
-        ec = ec - self.eval_times[self._get_index_of_x(x)]
-        if ec < 0:
-            ec = 0
-
-        return torch.div(numerator, ec)
-
-    def _candidate_value(self, x):
-
-        self.acq.update(self.model, self.ue, self.cost_model)
-
-        numerator = self.acq.acq.forward(x)
-
-        ec = self.cost_model(x)
-        ec = self.T_cost.unscale_mean(ec.mean.ravel())
-        if ec < 0:
-            ec = 0
-
-        return torch.div(numerator, ec)
-
-    def value(self, x):
-        if x in self.ue:
-            return self._ongoing_value(x)
+    def _ongoing_cost(self, x):
+        if x not in self.ue:
+            return 0
         else:
-            return self._candidate_value(x)
+            return self.eval_times[self._get_index_of_x(x)]
 
-    def eligibility_criteria(self, x_star, x_i):
-        if self.value(x_star) > self.value(x_i) + self.delta:
-            return True
+
+    def _value_distribution(self, x):
+
+        # Get distribution of problem model at x
+        Y_x = self.model(x)
+
+        # Extract standard deviation
+        sig_p = Y_x.stddev
+
+        # Scale back to actual output to extract mean
+        mu_p = self.T_data.unscale_mean(Y_x.mean.ravel())
+
+        # Generate samples from Y_x
+        y_x = np.random.normal(mu_p.detach(), sig_p.detach(), self.n_samples)
+
+        # Convert to samples of the improvement
+        f_star = self.model.train_targets.min()
+        i_x = np.array([f_star - sample for sample in y_x])
+        i_x[i_x < 0] = 0
+
+
+        # Get distribution of cost model at x
+        C_x = self.cost_model(x)
+
+        # Extract standard deviation
+        sig_c = C_x.stddev
+
+        # Scale back to actual output to extract mean
+        mu_c = self.T_cost.unscale_mean(C_x.mean.ravel())
+
+        # Get spent cost
+        spent_cost = self._ongoing_cost(x)
+
+        # Generate samples from C_x - spent_cost
+        c_x = np.random.normal((mu_c - spent_cost).detach(), sig_c.detach(), self.n_samples)
+
+        # Clamp c_x >= epsilon
+        c_x[c_x < self.epsilon] = self.epsilon
+
+        # Calculate value distribution samples v_x
+        v_x = [y_x[k] / c_x[k] for k in range(self.n_samples)]
+
+        return v_x
+
+    def _probability(self, candidate_samples, ongoing_samples):
+
+        counter = 0
+        for candidate_sample, ongoing_sample in zip(candidate_samples, ongoing_samples):
+            if candidate_sample > ongoing_sample:
+                counter += 1
+
+        return counter / len(candidate_samples)
+
+    def eligibility_criteria(self, x_i):
+        x_i_samples = self._value_distribution(x_i)
+        p = self._probability(self.x_star_samples, x_i_samples)
+        if p > self.alpha:
+            return (True, p)
         else:
-            return False
+            return (False, p)
 
     def decision(self, x_is):
-        for x_i in x_is:
+        for x_i, i_p in x_is:
             adopt = True
-            for x_j in [_ for _ in x_is if _ != x_i]:
-                if self.value(x_j) < self.value(x_i):
+            for x_j, j_p in [_ for _ in x_is if _ != (x_i, i_p)]:
+                if j_p > i_p:
                     adopt = False
             if adopt:
                 return x_i
@@ -538,11 +540,13 @@ class ProabilisticKilling(SelectiveKillingBase):
         return None
 
     def _get_next(self, x_star):
+        self.x_star_samples = self._value_distribution(x_star)
         x_is = []
         for x_i in self.ue:
             x_i = torch.reshape(x_i, (1,len(x_i)))
-            if self.eligibility_criteria(x_star, x_i):
-                x_is.append(x_i)
+            eligible, p = self.eligibility_criteria(x_i)
+            if eligible:
+                x_is.append((x_i, p))
         
         # If we have no eligible evaluations return
         if x_is == []:

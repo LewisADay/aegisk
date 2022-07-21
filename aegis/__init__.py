@@ -9,6 +9,7 @@ from . import (
     time_dists,
     gen_training_data,
     plotting,
+    killing,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "time_dists",
     "gen_training_data",
     "plotting",
+    "killing",
 ]
