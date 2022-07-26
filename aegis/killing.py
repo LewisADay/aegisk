@@ -417,7 +417,7 @@ class DeterministicKilling(SelectiveKillingBase):
 
         return x_i
 
-class ProabilisticKilling(SelectiveKillingBase):
+class ProbabilisticKilling(SelectiveKillingBase):
     def __init__(
         self,
         model,
@@ -435,7 +435,7 @@ class ProabilisticKilling(SelectiveKillingBase):
         epsilon=1e-8
     ):
 
-        kill_name = "ProabilisticKilling"
+        kill_name = "ProbabilisticKilling"
 
         super().__init__(
             model,
