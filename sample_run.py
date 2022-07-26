@@ -10,7 +10,7 @@ methods = {
     #"EICostRatio": "EICostRatio",
     #"UCBCostRatio": "UCBCostRatio"
     "HardLocalPenalisationBatchBOCost": "HardLocalPenalisationBatchBOCost",
-    "LocalPenalisationBatchBOCost": "LocalPenalisationBatchBOCost"
+    #"LocalPenalisationBatchBOCost": "LocalPenalisationBatchBOCost"
 }
 
 bo_names = {
@@ -24,7 +24,7 @@ bo_names = {
 
 killing_names = [
     #"NoKilling",
-    "DeterministicKilling",
+    #"DeterministicKilling",
     "ProbabilisticKilling"
 ]
 
@@ -47,7 +47,7 @@ killing_params = {
         "n_opt_bfgs": 10,
     },
     "ProbabilisticKilling": {
-        "alpha": 0.8,
+        "alpha": 0.5,
         "epsilon": 1e-8,
         "n_opt_samples": 1 * 1000,
         "n_opt_bfgs": 10,

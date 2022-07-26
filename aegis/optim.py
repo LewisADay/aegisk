@@ -251,6 +251,12 @@ class AsyncBO:
         # add to under evaluation
         self.ue.add(x)
 
+        # Train model gp
+        self._setup_model_gp()
+
+        # Train cost gp
+        self._setup_cost_gp()
+
         if self.verbose:
             print("Submitted ->", x.numpy().ravel())
 
@@ -664,43 +670,38 @@ class AsyncSKBO(AsyncCostAcqBO):
 
         # get locations to evaluate from the acquisition function, create a
         # job, and submit it
-        for _ in range(n_to_submit-1):
-
-            x_star = self.acq.get_next()
-
-            self._adopt_x(x_star)
-
-        if n_to_submit > 0:
+        for _ in range(n_to_submit):
 
             # get the next location to evaluate
             x_star = self.acq._get_next()
 
-            # While we have not finished killing
-            killed_something = True
-            while killed_something: 
+            if _ == n_to_submit - 1:
+                # While we have not finished killing
+                killed_something = True
+                while killed_something: 
 
-                # Determine x to kill, if any
-                x_i = self.killing_method._get_next(x_star)
+                    # Determine x to kill, if any
+                    x_i = self.killing_method._get_next(x_star)
 
-                # If something to kill
-                if x_i is not None:
-                    #kill x_i
-                    self.kill_x(x_i)
-                    #adopt x_star
-                    self._adopt_x(x_star)
-                    #generate new x_star
-                    self._update_acq()
-                    self._update_killing_method()
-                    x_star = self.acq._get_next()
-                else:
-                    # We haven't killed anything, so we're done for now
-                    killed_something = False
+                    # If something to kill
+                    if x_i is not None:
+                        #kill x_i
+                        self.kill_x(x_i)
+                        #adopt x_star
+                        self._adopt_x(x_star)
+                        #generate new x_star
+                        self._update_acq()
+                        self._update_killing_method()
+                        x_star = self.acq._get_next()
+                    else:
+                        # We haven't killed anything, so we're done for now
+                        killed_something = False
 
-                # We have checked all evaluations and do not want to kill them
-                # so adopt x_star
-                self._adopt_x(x_star)
-                self._update_acq()
-                self._update_killing_method()
+            # We have checked all evaluations and do not want to kill them
+            # so adopt x_star
+            self._adopt_x(x_star)
+            self._update_acq()
+            self._update_killing_method()
 
         self.n_submitted += n_to_submit
 

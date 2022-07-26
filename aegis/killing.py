@@ -4,7 +4,9 @@ import torch
 import numpy as np
 from aegis import batch, util
 from .batch.ratios import CostAcqFunc, EICostAcq, UCBCostAcq
-
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+import plotting
 
 """
 class SelectiveKillingAcqBase(botorch.acquisition.AnalyticAcquisitionFunction):
@@ -490,6 +492,7 @@ class ProbabilisticKilling(SelectiveKillingBase):
 
         # Convert to samples of the improvement
         f_star = self.model.train_targets.min()
+        f_star = self.T_data.unscale_mean(f_star)
         i_x = np.array([f_star - sample for sample in y_x])
         i_x[i_x < 0] = 0
 
@@ -513,7 +516,7 @@ class ProbabilisticKilling(SelectiveKillingBase):
         c_x[c_x < self.epsilon] = self.epsilon
 
         # Calculate value distribution samples v_x
-        v_x = [y_x[k] / c_x[k] for k in range(self.n_samples)]
+        v_x = [i_x[k] / c_x[k] for k in range(self.n_samples)]
 
         return v_x
 
@@ -563,4 +566,26 @@ class ProbabilisticKilling(SelectiveKillingBase):
         #x_is = torch.as_tensor(x_is)
         x_i = self.decision(x_is)
 
+        # do some validation plots
+        #self._temp_plots(x_star, x_i)
+
         return x_i
+
+    def _temp_plots(self, x_star, x_i):
+
+        fig, axs = plt.subplots(2)
+
+        # Plot distributions of x_star and x_i to vlaidate selection
+        # Plot 1
+        plotting.gp_plot(axs[0], self.model, self.T_data, color="tab:blue")
+        axs[0].set(title="Problem Model")
+
+        plotting.gp_plot(axs[1], self.cost_model, self.T_cost, color="tab:blue")
+        axs[1].set(title="Cost Model")
+
+        plotting.plot_vline_axes(axs, x_star, color="red")
+        plotting.plot_vline_axes(axs, x_i, color="green")
+
+        plt.tight_layout()
+        plt.show()
+        input("Anything to continue")
