@@ -19,12 +19,13 @@ bo_names = {
     #"EICostRatio": "AsyncCostAcqBO",
     #"UCBCostRatio": "AsyncCostAcqBO",
     "HardLocalPenalisationBatchBOCost": "AsyncSKBO",
-    #"LocalPenalisationBatchBOCost": "AsyncSKBO"
+    "LocalPenalisationBatchBOCost": "AsyncSKBO"
 }
 
 killing_names = [
     #"NoKilling",
-    "DeterministicKilling"
+    "DeterministicKilling",
+    "ProbabilisticKilling"
 ]
 
 acq_params = {
@@ -42,6 +43,12 @@ killing_params = {
         "delta": 0,
         "acq_name": "",
         "acq_params": acq_params,
+        "n_opt_samples": 1 * 1000,
+        "n_opt_bfgs": 10,
+    },
+    "ProbabilisticKilling": {
+        "alpha": 0.8,
+        "epsilon": 1e-8,
         "n_opt_samples": 1 * 1000,
         "n_opt_bfgs": 10,
     }
