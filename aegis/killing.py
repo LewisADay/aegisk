@@ -340,12 +340,14 @@ class DeterministicKilling(SelectiveKillingBase):
         return self._acq(self.ue)
 
 
-    def _get_index_of_x(self, x):
+    def __get_index_of_x(self, x):
         for k in range(len(self.ue)):
-            #if x == self.ue[k]:
             if torch.equal(x, self.ue[k]):
                 print(k)
                 return k
+
+    def _get_index_of_x(self, x):
+        return torch.eq(self.ue, x).nonzero()[0,0]
 
     def _ongoing_value(self, x):
 
@@ -375,7 +377,7 @@ class DeterministicKilling(SelectiveKillingBase):
         return torch.div(numerator, ec)
 
     def value(self, x):
-        if x in self.ue:
+        if any(torch.eq(self.ue, x)):
             return self._ongoing_value(x)
         else:
             return self._candidate_value(x)
@@ -401,8 +403,6 @@ class DeterministicKilling(SelectiveKillingBase):
     def _get_next(self, x_star):
         x_is = []
         for x_i in self.ue:
-            print(f"xi: {x_i}")
-            #x_i = torch.reshape(x_i, (1,len(x_i)))
             if self.eligibility_criteria(x_star, x_i):
                 x_i = torch.reshape(x_i, (1,len(x_i)))
                 x_is.append(x_i)

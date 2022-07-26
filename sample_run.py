@@ -19,11 +19,11 @@ bo_names = {
     #"EICostRatio": "AsyncCostAcqBO",
     #"UCBCostRatio": "AsyncCostAcqBO",
     "HardLocalPenalisationBatchBOCost": "AsyncSKBO",
-    "LocalPenalisationBatchBOCost": "AsyncSKBO"
+    #"LocalPenalisationBatchBOCost": "AsyncSKBO"
 }
 
 killing_names = [
-    "NoKilling",
+    #"NoKilling",
     "DeterministicKilling"
 ]
 
@@ -53,7 +53,7 @@ time_functions = [
 
 max_steps = 100
 num_runs = 21
-workers = [2, 4, 8]
+workers = [8]
 
 
 
