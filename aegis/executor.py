@@ -1,5 +1,6 @@
 from argparse import ArgumentError
 import time
+import torch
 from typing import List, Dict, Union, Optional, Callable
 from concurrent import futures
 
@@ -358,7 +359,7 @@ class SimExecutor(ExecutorBase):
         # Find x in running tasks
         for k in range(len(self._running_tasks)):
             task = self._running_tasks[k]
-            if task["x"] == x:
+            if torch.equal(task["x"], x):
                 idx = k
 
         # If x in running tasks, remove it

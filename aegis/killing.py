@@ -351,7 +351,11 @@ class DeterministicKilling(SelectiveKillingBase):
 
     def _ongoing_value(self, x):
 
-        tmp_ue = torch.as_tensor([[_x] for _x in self.ue if not torch.equal(_x, x)])
+        tensor_list = [torch.as_tensor(_x) for _x in self.ue if not torch.equal(_x, x)]
+        if len(tensor_list) != 0:
+            tmp_ue = torch.stack(tensor_list)
+        else:
+            tmp_ue = torch.tensor([])
         tmp_acq = self._acq(tmp_ue)
 
         _x = torch.reshape(x, (1,len(x)))
@@ -377,7 +381,7 @@ class DeterministicKilling(SelectiveKillingBase):
         return torch.div(numerator, ec)
 
     def value(self, x):
-        if any(torch.eq(self.ue, x)):
+        if any([torch.equal(x, ongoing) for ongoing in self.ue]):
             return self._ongoing_value(x)
         else:
             return self._candidate_value(x)
@@ -391,7 +395,7 @@ class DeterministicKilling(SelectiveKillingBase):
     def decision(self, x_is):
         for x_i in x_is:
             adopt = True
-            for x_j in [_ for _ in x_is if _ != x_i]:
+            for x_j in [_ for _ in x_is if not torch.equal(_, x_i)]:
                 if self.value(x_j) < self.value(x_i):
                     adopt = False
             if adopt:
@@ -455,10 +459,13 @@ class ProbabilisticKilling(SelectiveKillingBase):
         self.n_samples = n_samples
         self.epsilon = epsilon
 
-    def _get_index_of_x(self, x):
+    def __get_index_of_x(self, x):
         for k in range(len(self.ue)):
             if x == self.ue[k]:
                 return k
+
+    def _get_index_of_x(self, x):
+        return torch.eq(self.ue, x).nonzero()[0,0]
 
     def _ongoing_cost(self, x):
         if x not in self.ue:
