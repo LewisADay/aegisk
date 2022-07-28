@@ -540,7 +540,7 @@ class ProbabilisticKilling(SelectiveKillingBase):
     def decision(self, x_is):
         for x_i, i_p in x_is:
             adopt = True
-            for x_j, j_p in [_ for _ in x_is if _ != (x_i, i_p)]:
+            for j_p in [_[1] for _ in x_is if not torch.equal(_[0], x_i)]:
                 if j_p > i_p:
                     adopt = False
             if adopt:

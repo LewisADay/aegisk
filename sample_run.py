@@ -1,5 +1,5 @@
 problems = [
-    ("Forrester", {}),
+    #("Forrester", {}),
     ("Levy", {}),
     ("Hartmann6", {})
 ]
@@ -9,8 +9,8 @@ methods = {
     #"UCB": "UCB",
     #"EICostRatio": "EICostRatio",
     #"UCBCostRatio": "UCBCostRatio"
-    "HardLocalPenalisationBatchBOCost": "HardLocalPenalisationBatchBOCost",
-    #"LocalPenalisationBatchBOCost": "LocalPenalisationBatchBOCost"
+    #"HardLocalPenalisationBatchBOCost": "HardLocalPenalisationBatchBOCost",
+    "LocalPenalisationBatchBOCost": "LocalPenalisationBatchBOCost"
 }
 
 bo_names = {
@@ -47,7 +47,7 @@ killing_params = {
         "n_opt_bfgs": 10,
     },
     "ProbabilisticKilling": {
-        "alpha": 0.5,
+        "alpha": 0.2,
         "epsilon": 1e-8,
         "n_opt_samples": 1 * 1000,
         "n_opt_bfgs": 10,
