@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-import torch
+import math
 
 class timefunc:
     def __init__(self, name):
@@ -42,13 +42,17 @@ class exponential(timefunc):
         return np.random.exponential(scale=self.scale, size=n)
 
 class consttime(timefunc):
-    def __init__(self, scale=1):
+    def __init__(self, scale=100):
         timefunc.__init__(self, "consttime")
         
-        self.acdseef = 1
+        self.scale = scale
         
     def __call__(self, x, n=1):
-        return (x*101)/(x*100) * self.acdseef
+        x = np.array(x)
+        res = []
+        for _x in x:
+            res.append(self.scale + math.sin(np.sum(_x.ravel().flatten())))
+        return np.array(res)
         
     
 class gausstime(timefunc):
@@ -82,7 +86,7 @@ class corrtime(timefunc):
         self.yopt = self.prob.yopt
     
     def __call__(self, x, n=1):
-        return (self.prob(x)-self.yopt) * self.a + np.abs(self.yopt)
+        return ((self.prob(x)-self.yopt) + np.abs(self.yopt*1.5)) * self.a
     
 class negcorrtime(corrtime):
     def __init__(self, prob, a=10):
