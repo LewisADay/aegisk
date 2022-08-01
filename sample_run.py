@@ -1,5 +1,5 @@
 problems = [
-    #("Forrester", {}),
+    ("Forrester", {}),
     ("Levy", {}),
     ("Hartmann6", {})
 ]
@@ -23,8 +23,8 @@ bo_names = {
 }
 
 killing_names = [
-    #"NoKilling",
-    #"DeterministicKilling",
+    "NoKilling",
+    "DeterministicKilling",
     "ProbabilisticKilling"
 ]
 
@@ -55,16 +55,19 @@ killing_params = {
 }
 
 time_functions = [
-    ("corrtime", "job-dependant")
+    ("corrtime", "job-dependant"),
+    ("negcorrtime", "job-dependant"),
+    ("consttime", "job-dependant"),
 ]
 
 max_steps = 100
 num_runs = 21
-workers = [8]
+workers = [2, 4, 8]
 
 
 
 import numpy as np
+from aegis.util import generate_save_filename
 from aegis.gen_training_data import generate_training_data_LHS
 from aegis.optim import perform_optimisation
 
@@ -89,6 +92,20 @@ for problem_name, problem_params in problems:
                         kill_params["acq_name"] = acq_name
 
                     for run in range(num_runs):
+
+                        print(generate_save_filename(
+                            time_name,
+                            problem_name,
+                            max_steps,
+                            n_workers,
+                            acq_name,
+                            run+1,
+                            bo_name,
+                            kill_name,
+                            problem_params,
+                            acq_params,
+                            None,
+                        ))
 
                         perform_optimisation(
                             problem_name=problem_name,
