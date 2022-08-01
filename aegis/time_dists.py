@@ -42,7 +42,7 @@ class exponential(timefunc):
         return np.random.exponential(scale=self.scale, size=n)
 
 class consttime(timefunc):
-    def __init__(self, scale=100):
+    def __init__(self, prob, scale=100):
         timefunc.__init__(self, "consttime")
         
         self.scale = scale
