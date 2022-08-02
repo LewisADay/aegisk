@@ -389,7 +389,7 @@ class DeterministicKilling(SelectiveKillingBase):
             return self._candidate_value(x)
 
     def eligibility_criteria(self, x_star, x_i):
-        if self.value(x_star) > self.value(x_i) + self.delta:
+        if self.value(x_star) / self.value(x_i) > self.delta:
             return True
         else:
             return False
