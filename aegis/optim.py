@@ -35,6 +35,7 @@ def perform_optimisation(
         kill_name,
         problem_params,
         acq_params,
+        killing_params,
         repeat_no=repeat_no,
     )
 
