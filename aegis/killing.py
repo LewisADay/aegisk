@@ -99,44 +99,6 @@ class SelectiveKillingBase(CostAcqFunc):
         super().update(model, under_evaluation, cost_model)
         self.eval_times = eval_times
 
-    def _opt_acq(self):
-
-        # perform Boltzmann sampling with n_opt_samples samples and
-        # optimise the best n_opt_bfgs of these with l-bfgs-b
-
-        n_samples = self.n_opt_samples / 2
-
-        # try a few times just in case we get unlucky and all our samples
-        # are in flat regions of space (unlikely but can happen with EI)
-        MAX_ATTEMPTS = 5
-
-        e = RuntimeError
-        for attempts in range(MAX_ATTEMPTS):
-            n_samples *= 2
-
-            try:
-                train_xnew, acq_f = botorch.optim.optimize_acqf(
-                    acq_function=self.acq,
-                    q=1,
-                    bounds=self.problem_bounds,
-                    num_restarts=self.n_opt_bfgs,
-                    raw_samples=self.n_opt_samples,
-                )
-                return train_xnew
-
-            # botorch throws a RuntimeError with the reason:
-            # invalid multinomial distribution (sum of probabilities <= 0)
-            except RuntimeError:
-                e = RuntimeError.with_traceback
-                continue
-
-        # if we've reached this point we've failed to get a valid location,
-        # so raise an exception
-        msg = "Failed to optimise the acquisition function after"
-        msg += f" {MAX_ATTEMPTS} attempts. The acquisition function had a "
-        msg += " sum of probabilities <= 0 every time. This is very unlikely!"
-        raise e
-
     def _get_next(self, x_star):
         raise NotImplementedError
 
