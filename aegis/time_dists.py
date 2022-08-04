@@ -50,8 +50,7 @@ class consttime(timefunc):
     def __call__(self, x, n=1):
         x = np.array(x)
         res = []
-        for _x in x:
-            res.append(self.scale + math.sin(np.sum(_x.ravel().flatten())))
+        res.append(self.scale + math.sin(np.sum(x.ravel().flatten())))
         return np.array(res)
         
     
