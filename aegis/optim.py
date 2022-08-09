@@ -35,6 +35,7 @@ def perform_optimisation(
         kill_name,
         problem_params,
         acq_params,
+        killing_params,
         repeat_no=repeat_no,
     )
 
@@ -614,6 +615,8 @@ class AsyncSKBO(AsyncCostAcqBO):
         # Initialise after we have built a model
         self._killing_method = None
 
+        self._max_to_kill = self.n_workers
+
     def _get_ongoing_run_times(self):
         ongoing_tasks = self.interface._running_tasks
         res = [0] * len(ongoing_tasks)
@@ -644,6 +647,9 @@ class AsyncSKBO(AsyncCostAcqBO):
 
     def kill_x(self, x):
 
+        # Increment killed counter
+        self._killed += 1
+
         # Remove from UnderEval
         self.ue.remove(x)
 
@@ -662,6 +668,9 @@ class AsyncSKBO(AsyncCostAcqBO):
         if n_to_submit < 1:
             return
 
+        # Setup killed evaluations counter
+        self._killed = 0
+
         # update the acquisition function ready for use
         self._update_acq()
 
@@ -679,6 +688,11 @@ class AsyncSKBO(AsyncCostAcqBO):
                 # While we have not finished killing
                 killed_something = True
                 while killed_something: 
+
+                    # If we have killed our max per iteration
+                    # break out of killing loop
+                    if self._killed >= self._max_to_kill:
+                        break
 
                     # Determine x to kill, if any
                     x_i = self.killing_method._get_next(x_star)

@@ -143,12 +143,20 @@ def generate_save_filename(
     kill_name,
     problem_params={},
     acq_params={},
+    killing_params={},
     repeat_no=None,
     results_dir="results",
+    tag=False,
 ):
     # append dim if different from default
     if "d" in problem_params:
         problem_name = f'{problem_name:s}{problem_params["d"]:d}'
+
+    if tag:
+        if "DeterministicKilling" in kill_name:
+            kill_name = f'{kill_name:s}{killing_params["delta"]:0.2f}'
+        if "ProbabilisticKilling" in kill_name:
+            kill_name = f'{kill_name:s}{killing_params["alpha"]:0.2f}'
 
     if "aegis" in acq_name:
         epsilon = acq_params["epsilon"]
