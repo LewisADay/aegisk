@@ -1,3 +1,6 @@
+
+import numpy as np
+
 problems = [
     ("Forrester", {}),
     ("Levy", {}),
@@ -21,14 +24,14 @@ acq_params = {
 
 killing_params = {
     "DeterministicKilling": {
-        "delta": "",
+        "delta": 1,
         "acq_name": "",
         "acq_params": acq_params,
         "n_opt_samples": 1 * 1000,
         "n_opt_bfgs": 10,
     },
     "ProbabilisticKilling": {
-        "alpha": "",
+        "alpha": 0.8,
         "epsilon": 1e-8,
         "n_opt_samples": 1 * 1000,
         "n_opt_bfgs": 10,
@@ -54,6 +57,7 @@ import numpy as np
 from aegis.util import generate_save_filename
 from aegis.gen_training_data import generate_training_data_LHS
 from aegis.optim import perform_optimisation
+import os
 
 for problem_name, problem_params in problems:
 
@@ -73,6 +77,7 @@ for problem_name, problem_params in problems:
 
                 for run in range(num_runs):
 
+                    """
                     perform_optimisation(
                         problem_name=problem_name,
                         problem_params=problem_params,
@@ -88,19 +93,39 @@ for problem_name, problem_params in problems:
                         kill_name=kill_name,
                         killing_params=kill_params,
                     )
+                    """
 
                     file_name = generate_save_filename(
-                            time_name,
-                            problem_name,
-                            max_steps,
-                            n_workers,
-                            acq_name,
-                            run+1,
-                            bo_name,
-                            kill_name,
-                            problem_params,
-                            acq_params,
-                            None,
+                        time_name,
+                        problem_name,
+                        max_steps,
+                        n_workers,
+                        acq_name,
+                        run+1,
+                        bo_name,
+                        kill_name,
+                        problem_params,
+                        acq_params,
+                        None,
                     )
 
-                    os.rename(file_name, f"")
+                    new_file_name = generate_save_filename(
+                        time_name,
+                        problem_name,
+                        max_steps,
+                        n_workers,
+                        acq_name,
+                        run+1,
+                        bo_name,
+                        kill_name,
+                        problem_params,
+                        acq_params,
+                        kill_params,
+                        None,
+                        tag=True,
+                    )
+
+                    #print(file_name)
+                    #print(new_file_name)
+
+                    os.rename(file_name, f"{new_file_name}")

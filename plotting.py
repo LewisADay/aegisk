@@ -166,6 +166,7 @@ def gp_plot(ax, model, transform, color=np.array([31, 119, 180])/255, xlim=(0,1)
 
     ax.scatter(train_x, train_y, marker="x", color="black")
 
+
 def acq_plot(ax, acq_class, color=np.array([227, 119, 194])/255, xlim=(0,1)):
 
     # Generate sample data
@@ -178,16 +179,20 @@ def acq_plot(ax, acq_class, color=np.array([227, 119, 194])/255, xlim=(0,1)):
 
     ax.plot(torch.asarray(test_x), torch.asarray(preds), color=color)
 
+
 def plot_vline(ax, x, color="red", alpha=0.8):
     ax.axvline(x=np.asarray(x), linestyle="--", color=color, alpha=alpha)
+
 
 def plot_vline_axes(axes, x, color="red", alpha=0.8):
     for ax in axes:
         plot_vline(ax, x, color=color, alpha=alpha)
 
+
 def mark_acq_choice_plot(axes, acq, color="red", alpha=0.8):
     choice = torch.asarray(acq._get_next())
     plot_vline_axes(axes, choice, color=color, alpha=alpha)
+
 
 def time_plot(
     ax,
@@ -329,7 +334,6 @@ def time_plot(
     ax.yaxis.set_major_formatter(
         matplotlib.ticker.StrMethodFormatter("{x:>4.1f}")
     )
-        
 
 
 def make_conv_plots(
@@ -340,6 +344,7 @@ def make_conv_plots(
     budget,
     method_names,
     method_cols,
+    killing_names,
     fname_prefix=None,
     TITLE_FONTSIZE=19,
     LABEL_FONTSIZE=18,
@@ -382,16 +387,17 @@ def make_conv_plots(
 
             # For each method
             for method_name in method_names:
+                for killing_name in killing_names:
                 # Get regret information
-                Y = D[time_func][n_workers][pn][method_name]['y'][:, start:end]
-                Y = np.log(Y)
+                    Y = D[time_func][n_workers][pn][method_name][killing_name]['y'][:, start:end]
+                    Y = np.log(Y)
 
-                # Get time information
-                T = D[time_func][n_workers][pn][method_name]['t'][:, start:end]
+                    # Get time information
+                    T = D[time_func][n_workers][pn][method_name][killing_name]['t'][:, start:end]
 
-                # Record extracted information
-                yvals.append(Y)
-                xvals.append(T)
+                    # Record extracted information
+                    yvals.append(Y)
+                    xvals.append(T)
 
             # Set plot title and axis labels
             title = f"{pn:s}, q={n_workers:d}"
