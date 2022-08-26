@@ -1,6 +1,6 @@
 # Asynchronous Bayesian Optimisation with Selective Killing
 
-Please note a large proportion of this repository is imported from AEGiS found at https://github.com/LewisADay/aegisk. Notably this readme is largly simply an adapted form of the reasme from that repository to make the appropriate changes for this work.
+Please note a large proportion of this repository is imported from AEGiS found at https://github.com/georgedeath/aegis. Notably this readme is largly simply an adapted form of the reasme from that repository to make the appropriate changes for this work.
 
 This repository contains the Python3 code for the experiments and results presented as my maters project in report and presentation form. All setup instructions are inherited from the submodule AEGiS as presented in:
 
