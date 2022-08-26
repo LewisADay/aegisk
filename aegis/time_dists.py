@@ -74,7 +74,7 @@ class gausstime(timefunc):
         return scipy.stats.norm.pdf(x, self.mean, self.scale).flatten() + 1
     
 class corrtime(timefunc):
-    def __init__(self, prob, a=10, name=None):
+    def __init__(self, prob, a=10, b=10, name=None):
         if name is None:
             timefunc.__init__(self, "corrtime")
         else:
@@ -82,15 +82,16 @@ class corrtime(timefunc):
         
         self.prob = prob
         self.a = a
+        self.b = b
         self.yopt = self.prob.yopt
     
     def __call__(self, x, n=1):
-        return ((self.prob(x)-self.yopt) + np.abs(self.yopt*1.5)) * self.a
+        return ((self.prob(x)-self.yopt) + self.b) * self.a
     
 class negcorrtime(corrtime):
-    def __init__(self, prob, a=10):
+    def __init__(self, prob, a=100, b=10):
         corrtime.__init__(self, prob, a, "negcorrtime")
     
     def __call__(self, x, n=1):
         #return self.max - (self.prob(x)-self.yopt) * self.a
-        return (1/(self.prob(x) - self.yopt + 10))*100
+        return (1/(self.prob(x) - self.yopt + self.b)) * self.a

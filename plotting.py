@@ -1,5 +1,6 @@
 #from crypt import methods
 import os
+import botorch
 import tqdm
 import torch
 import tqdm.auto
@@ -81,6 +82,18 @@ def read_in_results(
                             mn = method_name
 
                         for kill_name in killing_names:
+
+                            killing_params = {}
+                            if "DeterministicKilling" in kill_name:
+                                kn = kill_name[:len("DeterministicKilling")]
+                                killing_params["delta"] = float(kill_name[len("DeterministicKilling"):])
+                            elif "ProbabilisticKilling" in kill_name:
+                                kn = kill_name[:len("ProbabilisticKilling")]
+                                killing_params["alpha"] = float(kill_name[len("ProbabilisticKilling"):])
+                            else:
+                                kn = kill_name
+                            
+
                             res = np.zeros((n_runs, budget))
                             times = np.zeros((n_runs, budget))
                             costs = np.zeros((n_runs, budget))
@@ -94,9 +107,10 @@ def read_in_results(
                                     mn,
                                     run_no,
                                     bo_name,
-                                    kill_name,
+                                    kn,
                                     problem_params,
                                     acq_params,
+                                    killing_params,
                                 )
 
                                 try:
@@ -128,12 +142,12 @@ def read_in_results(
                             res = np.abs(res - f.yopt.ravel()[0])
                             res = np.minimum.accumulate(res, axis=1)  # type: ignore
 
-                            D[time_func][n_workers][pn][method_name][kill_name] = {'y': res, 't': times, 'c': costs}
+                            D[time_func][n_workers][pn][method_name][kn] = {'y': res, 't': times, 'c': costs}
 
     return D
 
 
-def gp_plot(ax, model, transform, color=np.array([31, 119, 180])/255, xlim=(0,1)):
+def gp_plot(ax, model, transform, color=np.array([31, 119, 180])/255, xlim=(0,1), label=None):
 
     # Ensure model is in evaluation mode
     model.eval()
@@ -155,7 +169,7 @@ def gp_plot(ax, model, transform, color=np.array([31, 119, 180])/255, xlim=(0,1)
     bot = means - 2*stddev
 
     test_x = torch.asarray(test_x)
-    ax.plot(test_x, means, color=color)
+    ax.plot(test_x, means, color=color, label=label)
     ax.fill_between(test_x, top, bot, color=color, alpha=0.15)
     ax.plot(test_x, top, "--", color=color, alpha=0.15)
     ax.plot(test_x, bot, "--", color=color, alpha=0.15)
@@ -172,7 +186,10 @@ def acq_plot(ax, acq_class, color=np.array([227, 119, 194])/255, xlim=(0,1)):
     # Generate sample data
     test_x = torch.as_tensor(np.linspace(xlim[0], xlim[1], 1000).astype(float))
 
-    acq = acq_class.acq
+    if not isinstance(acq_class, botorch.acquisition.AcquisitionFunction):
+        acq = acq_class.acq
+    else:
+        acq = acq_class
 
     with torch.no_grad():
         preds = acq.forward(test_x.reshape(-1, 1, 1))
@@ -402,7 +419,7 @@ def make_conv_plots(
             # Set plot title and axis labels
             title = f"{pn:s}, q={n_workers:d}"
             ylabel = r"$\log(R_t)$" if i == 0 else None
-            xlabel = "$t(s)$"
+            xlabel = "cost $(t(s))$"
 
             # Plot this method's "regret vs wall-clock time" plot
             time_plot(
@@ -429,7 +446,7 @@ def make_conv_plots(
 
         # Spacing adjustments
         plt.subplots_adjust(
-            left=0, right=1, bottom=0, top=1, wspace=0.03, hspace=0
+            left=0, right=1, bottom=0, top=1, wspace=0.1, hspace=0
         )
 
         # If we want to save the figure, save the figure
